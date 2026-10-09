@@ -1,0 +1,5 @@
+[{"id":"10001","name":"洋芋片","unit":"包","sys":5,"qty":5,"diff":0,"status":"正常","date":"10/9","user":"小王","loc":"A1"}
+,{"id":"10002","name":"冰棒","unit":"盒","sys":3,"qty":2,"diff":-1,"status":"異常","date":"10/9","user":"小王","loc":"A1"}
+,{"id":"10003","name":"可樂","unit":"罐","sys":4,"qty":6,"diff":2,"status":"異常","date":"10/9","user":"小王","loc":"A1"}
+,{"id":"20001","name":"傳輸線","unit":"條","sys":2,"qty":null,"diff":null,"status":"未盤點","date":"10/9","user":"小王","loc":"A1"}
+]
