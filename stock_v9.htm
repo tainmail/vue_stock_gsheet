@@ -190,7 +190,7 @@
 
         <!-- 單筆商品右欄 開始 -->
         <div class="count-box d-flex flex-column gap-1">
-          <input v-if="canCheck && isTrue(item.product_on)" class="form-control form-control-sm" type="number" min="0" step="1" :aria-label="item.product_title + '實盤數量'" placeholder="例如：21..." v-model="inputQty[item.stock_id]">
+          <input v-if="canCheck && isTrue(item.product_on)" class="form-control form-control-sm" type="number" min="0" step="1" :aria-label="item.product_title + '實盤數量'" placeholder="" v-model="inputQty[item.stock_id]">
           <button v-if="canCheck && isTrue(item.product_on)" class="btn btn-warning btn-sm" type="button" @click="submitOne(item)"><i class="bi bi-check-lg me-1"></i>{{ isUncounted(item.stock_count) ? '確認' : '更新' }}</button>
           <button v-if="canEdit" class="btn btn-success btn-sm" type="button" @click="openProductModal(item)"><i class="bi bi-pencil-square me-1"></i>編輯</button>
           <button class="btn btn-primary btn-sm" type="button" :aria-expanded="!!expandedItems[item.stock_id]" @click="toggleDetails(item.stock_id)"><i class="bi bi-list-ul me-1"></i>詳情</button>
@@ -258,7 +258,7 @@
             <tr><th scope="row">單位</th><td><input class="form-control form-control-sm" v-model.trim="productForm.product_unit" placeholder="例如：包..."><div class="tag-help"><span>包</span><span>盒</span><span>個</span><span>瓶</span><span>支</span><span>條</span><span>組</span></div></td></tr>
             <!-- 手動參考 Tag：純 HTML，不連動輸入框 結束 -->
             <tr><th scope="row">效期</th><td><div class="expiry-date-row"><input class="form-control form-control-sm" style="flex:1 1 145px" type="date" v-model="expiryDate" :disabled="expiryNone"><label class="small text-nowrap"><input type="checkbox" v-model="expiryNone" class="form-check-input me-1">無效期</label></div></td></tr>
-            <tr><th scope="row">帳面數量</th><td><input class="form-control form-control-sm" type="number" min="0" step="1" v-model="productForm.stock_qty" placeholder="例如：21..."></td></tr>
+            <tr><th scope="row">帳面數量</th><td><input class="form-control form-control-sm" type="number" min="0" step="1" v-model="productForm.stock_qty" placeholder=""></td></tr>
             <tr><th scope="row">庫存區域</th><td><input class="form-control form-control-sm" v-model.trim="productForm.stock_area" placeholder="例如：A1..."><div class="tag-help"><span>A1</span><span>A2</span><span>B1</span><span>B2</span><span>C1</span><span>C2</span></div></td></tr>
             <!-- 商品有效由試算表維護；表單不開放修改 開始 -->
             <!-- product_alive 欄位保留於資料物件，不在本表單顯示 -->
