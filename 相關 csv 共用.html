@@ -1,0 +1,205 @@
+
+
+
+
+發布成 csv
+
+商品主表
+https://docs.google.com/spreadsheets/d/e/2PACX-1vT_9h7ZJ7i1V6xUvD1MeF7b3X6JjmysLpytTjCc5hvOP0b_CpDkCxjCki2qQ6FwnM7aA94DJdNtoDlZ/pub?gid=1882716339&single=true&output=csv
+
+盤點歷史
+https://docs.google.com/spreadsheets/d/e/2PACX-1vT_9h7ZJ7i1V6xUvD1MeF7b3X6JjmysLpytTjCc5hvOP0b_CpDkCxjCki2qQ6FwnM7aA94DJdNtoDlZ/pub?gid=1135782892&single=true&output=csv
+
+盤點人員
+https://docs.google.com/spreadsheets/d/e/2PACX-1vT_9h7ZJ7i1V6xUvD1MeF7b3X6JjmysLpytTjCc5hvOP0b_CpDkCxjCki2qQ6FwnM7aA94DJdNtoDlZ/pub?gid=2091206011&single=true&output=csv
+
+網頁文案
+https://docs.google.com/spreadsheets/d/e/2PACX-1vT_9h7ZJ7i1V6xUvD1MeF7b3X6JjmysLpytTjCc5hvOP0b_CpDkCxjCki2qQ6FwnM7aA94DJdNtoDlZ/pub?gid=295094548&single=true&output=csv
+
+商品主表
+1. {"stock_id":"ST001","product_id":"SN001","product_lot":"LOT001","product_kind":"零食","product_title":"洋芋片","product_unit":"包","product_expiry":"2027-01-01","product_alive":"TRUE","product_on":"TRUE","stock_qty":"21","stock_count":"21","stock_diff":"0","stock_status":"正常","stock_area":"A1","check_batch":"20261009-U01","check_time":"2026-10-09 9:01:00","check_id":"U01","check_user":"游邁健","product_note":"熱賣品項"}
+2. {"stock_id":"ST002","product_id":"SN002","product_lot":"LOT002","product_kind":"零食","product_title":"冰棒","product_unit":"盒","product_expiry":"無","product_alive":"TRUE","product_on":"TRUE","stock_qty":"28","stock_count":"25","stock_diff":"-3","stock_status":"異常","stock_area":"A1","check_batch":"20261009-U01","check_time":"2026-10-09 9:01:01","check_id":"U02","check_user":"游邁健","product_note":"冰箱保存"}
+
+盤點歷史
+1. {"check_batch":"20261009-U01","check_time":"2026-10-09 9:01:00","check_id":"U01","check_user":"游邁健","stock_id":"ST001","product_id":"SN001","product_lot":"LOT001","product_kind":"零食","product_title":"洋芋片","product_unit":"包","product_expiry":"2027-01-01","stock_qty":"21","stock_count":"21","stock_diff":"0","stock_status":"正常","stock_area":"A1","product_note":"熱賣品項"}
+2. {"check_batch":"20261009-U01","check_time":"2026-10-09 9:02:00","check_id":"U02","check_user":"游邁健","stock_id":"ST002","product_id":"SN002","product_lot":"LOT002","product_kind":"零食","product_title":"冰棒","product_unit":"盒","product_expiry":"無","stock_qty":"28","stock_count":"27","stock_diff":"-1","stock_status":"異常","stock_area":"A1","product_note":"冰箱保存"}
+
+盤點人員
+1. {"check_id":"ADMIN","check_user":"賣石斤","check_type":"管理員","auth_edit":"TRUE","auth_check":"TRUE"}
+2. {"check_id":"GUEST","check_user":"訪客","check_type":"訪客","auth_edit":"FALSE","auth_check":"FALSE"}
+
+網頁文案
+1. {"page_title_1":"勝悅 今來 ▶ 盤點","page_note_1":"1. 請於 週二 PM 02:00前完成。","page_note_2":"2. 標註【缺貨】產品， 勿再下單。","page_note_3":"3.點不完不要回家"}
+
+=================
+目前的資料是這樣。
+1.
+開始改寫 stock_v2.htm 先把唯讀的部份作出來。成v3。參考原先提供的view 模板的寫作習慣。
+
+2.
+header 寫入 1. {"page_title_1":"勝悅 今來 ▶ 盤點","page_....的說明文字。用 h1 p
+
+3.
+stock_v2.htm?user=ADMIN
+可以打開一個 lihgtbox 按鈕 "新增盤點"  (放在 "搜尋商品" 這區的下一列)。按鈕下去 alert 假裝 fetch callback 成功寫入資料，再插入第一則。
+編輯盤點 "編輯" 可以打開一個 lihgtbox。介面同 新增盤點 (放在 按鈕"更新" 這下一列)。"stock_id" 應該是要維讀。
+
+3.
+權限編輯 admin #Lightbox商品管理 #新增 #修改 #上下架
+權限盤點 admin U01 #輸入數量 #修改備註 #單筆送出
+所有人 admin U01 guest  #讀取 #篩選搜尋
+
+stock_v2.htm?user=ADMIN
+可以打開一個 lihgtbox 按鈕 "新增盤點"  (放在 "搜尋商品" 這區的下一列)。按鈕下去 alert 假裝 fetch callback 成功寫入資料，再插入第一則。
+編輯盤點 "編輯" 可以打開一個 lihgtbox。介面同 新增盤點 (放在 按鈕"更新" 這下一列)。"stock_id" 應該是要維讀。
+
+?user=U01。
+前端顯示人員：U01｜游邁健，唯讀不可修改。
+"正常"tag 後面增加一個 小按鈕。可以編輯備註。按下去後 light box 出來一個欄位給他寫。
+需組合出  "check_batch":"20261009-U01" 找地方列。
+
+其他沒講到的資料，是 user 需要的，你先找合理的位置吐資料。
+
+給 stock_v3.htm 。先評估。有缺的話，我再補充資料
+
+===============
+
+
+- 
+
+
+製作 stock_v3.htm 前，有 3 個問題需要你決定：
+1. 新增商品的 stock_id
+
+A. 自動產生（ST021、ST022…）
+
+下架商品 product_on = FALSE。 只 admin 看的到，單則呈現灰色底。然後增加一個篩選鈕 "已下架"
+其他人完全看不到。
+
+網址沒有 ?user= 預設 GUEST，只能查詢
+
+
+- B. 管理員手動輸入
+2. 下架商品 product_on = FALSE
+- A. 預設隱藏，管理員可切換查看
+- B. 所有人都能看到，標示「已下架」
+3. 網址沒有 ?user=
+- A. 預設 GUEST，只能查詢
+- B. 顯示「尚未指定盤點人員」
+我的建議：1A、2A、3A。
+你直接回答例如 1A 2B 3A 就可以。
+
+================
+新增盤點 lihgtbox  帶 scroll  以 格線 table 為主。左邊是 label 右邊是 input。 日期要有小月曆可選。
+
+
+左欄   
+洋芋片
+"帳面 21包(藍楕圓)" "正常(綠楕圓)" "異常-2(紅楕圓)" "過期(黃楕圓)"
+備註：熱賣品項 "(筆型icon 按鈕)"
+
+(以下隱藏，按按鈕 "詳情" show hide toggle 不用動畫)
+h3 庫存詳情
+- 庫存：ST001 
+- 產編：SN001
+- 批號：LOT001 
+- 區域：A1
+- 類別：零食 
+- 效期：2025-01-01 
+
+h3 上次盤點
+- 批號：20261009-U01
+- 時間：2026-10-09 9:01:00
+- 人員：游邁健
+- 實盤：21包
+
+
+右欄
+實盤input
+按鈕 "編輯"
+按鈕 "詳情"
+==================
+
+h1  勝悅 今來 ▶ 盤點
+h4  -盤點人員：admin 賣石君 
+h4 -盤點批次： 20261010-ADMIN
+按鈕"新增盤點" select "顯示全部上下架， 顯示上架 顯示下架"
+p note1 
+p note2
+
+"搜尋商品"
+"庫存區域" "盤點狀態"
+
+"全部 零食...."
+
+"篩選 20 / 20 筆...."
+
+產品單則
+右欄。可以小一點。數字應該 9999 應該放的下。
+分成「庫存詳情」與「上次盤點」兩區。各自的圓框區分，以淡藍 淡綠當底色。
+再改一版。
+==============
+1.
+新增盤點
+加一些 placeholder 提示
+
+庫存 ID 列純文字。爬目前最大值 +1
+
+產品分類  input 下面列一些分類 tag 可讓它手動剪貼，我自已新增，不用js
+單位  input 下面列一些單位 tag 可讓它手動剪貼，我自已新增，不用js
+庫存區域  input 下面列一些單位 tag 可讓它手動剪貼，我自已新增，不用js
+
+商品有效 這列。應該是由 gSheet 比較效期產生。這列不用列(你評估)。
+上架狀態 用 radio
+
+2.
+修改備註
+h3 ST001 (庫存編號) 洋芋片 
+textarea
+
+3.
+按鈕 "更新" 實心用藍色 加 bs icon 
+按鈕 "編輯" 實心用綠色 加 bs icon
+按鈕 "詳情" 實心用黃色 加 bs icon
+
+4.
+全面檢討過大的 "圓角設計" 全部都維持在 小型圓角。
+全面檢討過大的 "padding設計" 全部都維持在 小型padding。
+
+=============
+1.
+調整備註 Modal 
+head ==> "修改備註"
+h4 ST001　洋芋片
+textarea 
+
+2.
+h5或h6 小字一點 盤點人員：ADMIN 賣石斤
+h5或h6 小字一點 盤點批次：20261010-ADMIN
+
+3.
+改成 "顯示上下架 顯示上架 顯示下架"
+
+4.
+按鈕 "更新" 實心用黃色  加 bs icon 
+按鈕 "編輯" 實心用綠色 加 bs icon
+按鈕 "詳情" 實心用藍色 加 bs icon
+
+5.
+按鈕 不用寫"模擬" 我了解現況。
+
+6.
+placeholder
+全改成 "例如：xx..."
+舉例 "例如：零食..."
+
+7.
+新增盤點。不用檢查必填。管理者會自已考量。再進後台編修。
+會影響程式運作，才檢查必填(評估)
+
+8
+user=U01  角色。的網址參數。大小寫都要可以。
+
+
+
+

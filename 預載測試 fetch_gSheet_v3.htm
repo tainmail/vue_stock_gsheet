@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>fetch_gSheet_v3 - CSV Key 測試</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    body { font-family: Arial, 'Microsoft JhengHei', sans-serif; padding: 12px; line-height: 1.5; }
+    button { margin: 0 6px 6px 0; padding: 7px 10px; cursor: pointer; }
+    button.active { background: #1464c0; color: white; border: 1px solid #1464c0; }
+    table { border-collapse: collapse; font-size: 13px; margin: 8px 0 14px; }
+    th, td { border: 1px solid #bbb; padding: 4px 8px; text-align: left; }
+    th { background: #f0f0f0; }
+    ul { padding-left: 24px; }
+    li { margin-bottom: 8px; overflow-wrap: anywhere; font-family: Consolas, 'Microsoft JhengHei', monospace; font-size: 13px; }
+    .error, .unknown { color: #c00; }
+    .hint { color: #666; font-size: 13px; }
+  </style>
+</head>
+<body>
+<!-- Vue 應用程式 開始 -->
+<div id="app">
+  <h3>Google Sheet CSV / 英文 Key 測試 v3</h3>
+  <!-- 工作表切換 開始 -->
+  <button v-for="(gid, name) in gidMap" :key="name" :class="{active: current === name}" @click="load(name)">
+    {{ titles[name] }} (gid={{ gid }})
+  </button>
+  <!-- 工作表切換 結束 -->
+
+  <p>{{ titles[current] }}：{{ records.length }} 筆 <span v-if="loading">（讀取中...）</span></p>
+  <p v-if="error" class="error">{{ error }}</p>
+  <p class="hint">第 4 列＝英文 Key，第 5 列＝中文表頭，第 6 列起＝資料。JSON 直接使用第 4 列英文 Key。</p>
+
+  <!-- 中英文 Key 對照表 開始 -->
+  <h4>中英文 Key 對照表</h4>
+  <table v-if="columns.length">
+    <thead><tr><th>欄位</th><th>中文欄名（CSV 第 5 列）</th><th>英文 Key（CSV 第 4 列／JSON）</th></tr></thead>
+    <tbody>
+      <tr v-for="(col, i) in columns" :key="i">
+        <td>{{ i + 1 }}</td>
+        <td>{{ col.zh || '（空白）' }}</td>
+        <td :class="{unknown: !col.valid}">{{ col.en }}<span v-if="!col.valid">（第 4 列無 Key，使用備用欄名）</span></td>
+      </tr>
+    </tbody>
+  </table>
+  <p v-else class="hint">讀取後顯示對照表。</p>
+  <!-- 中英文 Key 對照表 結束 -->
+
+  <!-- 英文 Key 資料清單 開始 -->
+  <h4>資料列表（英文 Key JSON）</h4>
+  <ul>
+    <li v-for="(item, idx) in records" :key="idx">{{ idx + 1 }}. {{ JSON.stringify(item) }}</li>
+  </ul>
+  <!-- 英文 Key 資料清單 結束 -->
+</div>
+<!-- Vue 應用程式 結束 -->
+
+<!-- Vue / CSV 腳本 開始 -->
+<script>
+const { createApp, ref } = Vue;
+
+// 共用 Google Sheet 設定 開始
+const publicID = '2PACX-1vT_9h7ZJ7i1V6xUvD1MeF7b3X6JjmysLpytTjCc5hvOP0b_CpDkCxjCki2qQ6FwnM7aA94DJdNtoDlZ';
+const gidMap = {
+  product: '1882716339',
+  history: '1135782892',
+  user: '2091206011',
+  content: '295094548'
+};
+const titles = { product: '商品主表', history: '盤點歷史', user: '盤點人員', content: '網頁文案' };
+const getCsvUrl = gid => `https://docs.google.com/spreadsheets/d/e/${publicID}/pub?gid=${gid}&single=true&output=csv`;
+// 共用 Google Sheet 設定 結束
+
+
+
+// CSV 解析 開始：支援引號、逗號及換行
+function parseCSV(text) {
+  const rows = [];
+  let row = [], field = '', quoted = false;
+  text = text.replace(/^\uFEFF/, '');
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === '"') {
+      if (quoted && text[i + 1] === '"') { field += '"'; i++; }
+      else quoted = !quoted;
+    } else if (c === ',' && !quoted) {
+      row.push(field); field = '';
+    } else if ((c === '\n' || c === '\r') && !quoted) {
+      if (c === '\r' && text[i + 1] === '\n') i++;
+      row.push(field); rows.push(row); row = []; field = '';
+    } else field += c;
+  }
+  if (field !== '' || row.length) { row.push(field); rows.push(row); }
+  return rows;
+}
+// CSV 解析 結束
+
+// Vue 資料與 Fetch 開始
+createApp({
+  setup() {
+    const records = ref([]);
+    const columns = ref([]);
+    const current = ref('product');
+    const loading = ref(false);
+    const error = ref('');
+    let requestToken = 0;
+
+    async function load(name) {
+      const token = ++requestToken;
+      current.value = name;
+      records.value = [];
+      columns.value = [];
+      error.value = '';
+      loading.value = true;
+      try {
+        const res = await fetch(getCsvUrl(gidMap[name]), { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const rows = parseCSV(await res.text());
+        if (token !== requestToken) return;
+        if (rows.length < 5) throw new Error(`CSV 只有 ${rows.length} 列，找不到第 4、5 列表頭`);
+        // 第 4 列英文 Key、第 5 列中文欄名（0-based：3、4）
+        const enHeader = rows[3];
+        const zhHeader = rows[4];
+        const used = new Set();
+        const resultColumns = enHeader.map((raw, i) => {
+          const key = raw.trim();
+          let en = key || `col${i + 1}`;
+          if (used.has(en)) en = `${en}_${i + 1}`;
+          used.add(en);
+          return { zh: (zhHeader[i] || '').trim(), en, valid: Boolean(key) };
+        });
+        columns.value = resultColumns;
+        records.value = rows.slice(5)
+          .filter(row => row.some(value => value.trim() !== ''))
+          .map(row => Object.fromEntries(resultColumns.map((col, i) => [col.en, row[i] ?? ''])));
+      } catch (e) {
+        if (token === requestToken) error.value = `讀取失敗：${e.message}`;
+      } finally {
+        if (token === requestToken) loading.value = false;
+      }
+    }
+
+    load('product');
+    return { records, columns, current, loading, error, gidMap, titles, load };
+  }
+}).mount('#app');
+// Vue 資料與 Fetch 結束
+</script>
+<!-- Vue / CSV 腳本 結束 -->
+</body>
+</html>

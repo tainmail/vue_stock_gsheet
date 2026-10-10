@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1" />
+  <title>庫存盤點 v6</title>
+
+  <!-- CDN 依賴 開始 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.5.3/papaparse.min.js"></script>
+  <!-- CDN 依賴 結束 -->
+
+  <!-- 樣式 開始 -->
+  <style>
+    * { font-family: 'Microsoft JhengHei', 'Noto Sans TC', sans-serif; }
+    body { background: #f8f9fa; overscroll-behavior-y: contain; }
+    [v-cloak] { display: none; }
+    .app-wrap { max-width: 768px; }
+    .product-row { background: #fff; }
+    .product-row.is-off { background: #e9ecef; border-color: #adb5bd !important; }
+    .product-meta { font-size: .78rem; color: #6c757d; line-height: 1.65; overflow-wrap: anywhere; }
+    .product-name { font-size: 1rem; }
+    .num-pill { display: inline-block; padding: .12em .55em; border-radius: 999px; background: #e9ecef; color: #343a40; font-weight: 700; line-height: 1.4; white-space: nowrap; }
+    .num-pill.is-success { background: #d1e7dd; color: #146c43; }
+    .num-pill.is-danger { background: #f8d7da; color: #b02a37; }
+    .num-pill.is-muted { background: #dee2e6; color: #495057; }
+    .num-pill.is-info { background: #cfe2ff; color: #084298; }
+    .num-pill.is-warning { background: #fff3cd; color: #8a5b00; }
+    .product-count { font-size: .88rem; }
+    .count-box { width: 76px; flex: 0 0 76px; }
+    .count-box .form-control { text-align: right; font-weight: 700; font-size: .95rem; padding-left: .15rem; padding-right: .25rem; appearance: textfield; -moz-appearance: textfield; }
+    .count-box input[type=number]::-webkit-inner-spin-button, .count-box input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    .count-box .btn { padding-left: .12rem; padding-right: .12rem; font-size: .82rem; }
+    .count-box .btn { width: 100%; }
+    .filter-title { font-size: .85rem; }
+    .pagination-bar { display: flex; justify-content: center; align-items: center; gap: 10px; }
+    .pagination-bar .btn { min-width: 85px; }
+    .header-notes p { margin-bottom: .18rem; font-size: .86rem; }
+    .small-action { padding: .08rem .35rem; font-size: .72rem; line-height: 1.3; }
+    .meta-activity { font-size: .72rem; color: #6c757d; }
+    .product-note { font-size: .83rem; overflow-wrap: anywhere; }
+    .detail-panel { font-size: .82rem; }
+    .detail-card { border-radius: 4px; padding: 8px; }
+    .detail-stock { background: #e8f3ff; border: 1px solid #c8e1fb; }
+    .detail-check { background: #e5f5ea; border: 1px solid #c8e7d1; }
+    .detail-stock h3 { color: #084298; }
+    .detail-check h3 { color: #146c43; }
+    .identity-line { font-size: 1rem; font-weight: 600; margin-bottom: .22rem; }
+    .detail-panel h3 { font-size: .94rem; margin: 0 0 .35rem; font-weight: 700; }
+    .detail-panel ul { margin: 0 0 .55rem; padding-left: 1.15rem; }
+    .detail-panel li { margin-bottom: .12rem; overflow-wrap: anywhere; }
+    .form-grid-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    .form-grid-table th, .form-grid-table td { border: 1px solid #dee2e6; padding: .28rem .4rem; vertical-align: middle; }
+    .form-grid-table th { width: 32%; background: #f1f3f5; font-size: .83rem; font-weight: 600; }
+    .form-grid-table .form-control, .form-grid-table .form-select { min-width: 0; }
+    .modal-dialog-scrollable .modal-body { overflow-y: auto; }
+    .expiry-date-row { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+    /* 全站小圓角與小間距 開始 */
+    .btn, .form-control, .form-select, .modal-content, .alert, .form-check-input { border-radius: 4px; }
+    .modal-header, .modal-footer { padding: .45rem .65rem; }
+    .modal-body { padding: .5rem; }
+    .modal-title { line-height: 1.35; }
+    .product-row { border-radius: 4px !important; }
+    .count-box .btn { padding-top: .22rem; padding-bottom: .22rem; }
+    .tag-help { margin-top: .28rem; font-size: .74rem; line-height: 1.7; }
+    .tag-help span { display: inline-block; margin-right: .2rem; margin-bottom: .15rem; padding: 0 .3rem; border-radius: 3px; background: #e9ecef; color: #495057; user-select: text; }
+    .form-grid-table .form-control { padding: .24rem .4rem; }
+    .stock-id-plain { font-weight: 700; color: #084298; }
+    /* 全站小圓角與小間距 結束 */
+    @media (max-width: 380px) {
+      .count-box { width: 76px; flex-basis: 76px; }
+      .product-meta { font-size: .73rem; }
+      .product-count { font-size: .82rem; }
+    }
+  </style>
+  <!-- 樣式 結束 -->
+</head>
+<body>
+
+<!-- 應用程式 開始 -->
+<div id="app" class="container app-wrap px-2 py-3" v-cloak>
+
+  <!-- 頁面標題／盤點身分 開始 -->
+  <header class="mb-2">
+    <div class="d-flex justify-content-between align-items-start gap-2">
+      <h1 class="h4 text-primary mb-2">{{ pageText.page_title_1 || '庫存盤點' }}</h1>
+      <small class="text-secondary text-nowrap">v6</small>
+    </div>
+    <h4 class="identity-line">盤點人員：{{ userInfo.check_id }} {{ userInfo.check_user }}</h4>
+    <h4 class="identity-line">盤點批次：{{ checkBatch }}</h4>
+  </header>
+  <!-- 頁面標題／盤點身分 結束 -->
+
+  <!-- ADMIN 商品管理列 開始 -->
+  <section v-if="canEdit" class="row g-2 align-items-center mb-2">
+    <div class="col-6">
+      <button type="button" class="btn btn-success w-100" @click="openProductModal(null)"><i class="bi bi-plus-circle me-1"></i>新增盤點</button>
+    </div>
+    <div class="col-6">
+      <select class="form-select" v-model="filterOn" aria-label="商品上下架篩選">
+        <option value="全部">顯示全部上下架</option>
+        <option value="已上架">顯示上架</option>
+        <option value="已下架">顯示下架</option>
+      </select>
+    </div>
+  </section>
+  <!-- ADMIN 商品管理列 結束 -->
+
+  <!-- 網頁公告 開始 -->
+  <section class="header-notes text-secondary mb-3">
+    <p v-if="pageText.page_note_1">{{ pageText.page_note_1 }}</p>
+    <p v-if="pageText.page_note_2">{{ pageText.page_note_2 }}</p>
+  </section>
+  <!-- 網頁公告 結束 -->
+
+  <!-- 讀取狀態 開始 -->
+  <div v-if="loading" class="alert alert-info py-2">正在讀取 Google Sheet CSV…</div>
+  <div v-if="loadError" class="alert alert-danger py-2" role="alert">{{ loadError }} <button class="btn btn-sm btn-outline-danger ms-2" @click="loadAll">重試</button></div>
+  <!-- 讀取狀態 結束 -->
+
+  <!-- 搜尋商品 開始 -->
+  <section class="mb-2">
+    <label class="form-label filter-title mb-1">搜尋商品</label>
+    <input class="form-control" v-model.trim="keyword" placeholder="名稱／編號／備註" type="search">
+  </section>
+  <!-- 搜尋商品 結束 -->
+
+  <!-- 庫存區域／盤點狀態 開始 -->
+  <section class="row g-2 mb-2">
+    <div class="col-6">
+      <label class="form-label filter-title mb-1">庫存區域</label>
+      <select class="form-select" v-model="filterArea">
+        <option value="全部">全部區域</option>
+        <option v-for="a in areaOptions" :key="a" :value="a">{{ a }}</option>
+      </select>
+    </div>
+    <div class="col-6">
+      <label class="form-label filter-title mb-1">盤點狀態</label>
+      <select class="form-select" v-model="filterStatus">
+        <option value="全部">全部狀態</option>
+        <option value="未盤">未盤</option>
+        <option value="正常">正常</option>
+        <option value="異常">異常</option>
+      </select>
+    </div>
+  </section>
+  <!-- 庫存區域／盤點狀態 結束 -->
+
+  <!-- 產品分類 Tag Button 開始 -->
+  <section class="d-flex align-items-center flex-wrap gap-1 mb-2">
+    <button v-for="c in categoryOptions" :key="c" type="button" class="btn btn-sm"
+      :class="filterCategory === c ? 'btn-primary' : 'btn-outline-secondary'"
+      @click="filterCategory = c">{{ c }}</button>
+  </section>
+  <!-- 產品分類 Tag Button 結束 -->
+
+  <!-- 盤點統計 開始 -->
+  <section class="d-flex justify-content-between flex-wrap gap-1 small mb-2">
+    <span class="text-secondary">篩選 <strong>{{ filteredItems.length }}</strong> / {{ visibleItems.length }} 筆</span>
+    <span>
+      <span class="num-pill is-success">正常 <strong>{{ statusCount('正常') }}</strong></span>
+      <span class="num-pill is-danger ms-1">異常 <strong>{{ statusCount('異常') }}</strong></span>
+      <span class="num-pill is-info ms-1">未盤 <strong>{{ statusCount('未盤') }}</strong></span>
+    </span>
+  </section>
+  <!-- 盤點統計 結束 -->
+
+  <!-- 商品盤點列表 開始 -->
+  <main>
+    <article v-for="item in pagedItems" :key="item.stock_id" class="product-row border rounded-1 px-2 py-2 mb-2" :class="{'is-off': !isTrue(item.product_on)}">
+      <div class="d-flex align-items-start gap-2">
+        <!-- 單筆商品左欄 開始 -->
+        <div class="flex-grow-1" style="min-width:0">
+          <div class="fw-semibold product-name mb-2">{{ item.product_title }} <span v-if="!isTrue(item.product_on)" class="num-pill is-muted ms-1 small">已下架</span></div>
+          <div class="product-count d-flex align-items-center gap-1 flex-wrap mb-2">
+            <span class="num-pill is-info">帳面 <strong>{{ displayNum(item.stock_qty) }}</strong>{{ item.product_unit }}</span>
+            <span v-if="normalizedStatus(item) === '正常'" class="num-pill is-success">正常</span>
+            <span v-else-if="normalizedStatus(item) === '異常'" class="num-pill is-danger">異常 <strong>{{ formatDiff(item.stock_diff) }}</strong></span>
+            <span v-else class="num-pill is-info">未盤</span>
+            <span v-if="isExpired(item.product_expiry)" class="num-pill is-warning">過期</span>
+          </div>
+          <div class="product-note text-secondary">
+            備註：{{ item.product_note || '—' }}
+            <button v-if="canCheck && isTrue(item.product_on)" type="button" class="btn btn-outline-secondary small-action ms-1" @click="openNoteModal(item)" aria-label="編輯備註" title="編輯備註"><i class="bi bi-pencil"></i></button>
+          </div>
+        </div>
+        <!-- 單筆商品左欄 結束 -->
+
+        <!-- 單筆商品右欄 開始 -->
+        <div class="count-box d-flex flex-column gap-1">
+          <input v-if="canCheck && isTrue(item.product_on)" class="form-control form-control-sm" type="number" min="0" step="1" :aria-label="item.product_title + '實盤數量'" placeholder="待盤" v-model="inputQty[item.stock_id]">
+          <button v-if="canCheck && isTrue(item.product_on)" class="btn btn-primary btn-sm" type="button" @click="submitOne(item)"><i class="bi bi-check-lg me-1"></i>{{ isUncounted(item.stock_count) ? '確認' : '更新' }}</button>
+          <button v-if="canEdit" class="btn btn-success btn-sm" type="button" @click="openProductModal(item)"><i class="bi bi-pencil-square me-1"></i>編輯</button>
+          <button class="btn btn-warning btn-sm" type="button" :aria-expanded="!!expandedItems[item.stock_id]" @click="toggleDetails(item.stock_id)"><i class="bi bi-list-ul me-1"></i>詳情</button>
+        </div>
+        <!-- 單筆商品右欄 結束 -->
+      </div>
+
+      <!-- 單筆商品詳情區（無動畫 Toggle）開始 -->
+      <section v-if="expandedItems[item.stock_id]" class="detail-panel mt-2 d-flex flex-column gap-2">
+        <!-- 庫存詳情：淡藍圓角框 開始 -->
+        <div class="detail-card detail-stock">
+          <h3>庫存詳情</h3>
+          <ul class="mb-0">
+            <li>庫存：{{ item.stock_id || '—' }}</li>
+            <li>產編：{{ item.product_id || '—' }}</li>
+            <li>批號：{{ item.product_lot || '—' }}</li>
+            <li>區域：{{ item.stock_area || '—' }}</li>
+            <li>類別：{{ item.product_kind || '—' }}</li>
+            <li>效期：{{ item.product_expiry || '—' }}</li>
+          </ul>
+        </div>
+        <!-- 庫存詳情：淡藍圓角框 結束 -->
+        <!-- 上次盤點：淡綠圓角框 開始 -->
+        <div class="detail-card detail-check">
+          <h3>上次盤點</h3>
+          <ul class="mb-0">
+            <li>批號：{{ item.check_batch || '—' }}</li>
+            <li>時間：{{ item.check_time || '—' }}</li>
+            <li>人員：{{ item.check_user || '—' }}</li>
+            <li>實盤：{{ displayNum(item.stock_count) }}{{ item.product_unit }}</li>
+          </ul>
+        </div>
+        <!-- 上次盤點：淡綠圓角框 結束 -->
+      </section>
+      <!-- 單筆商品詳情區（無動畫 Toggle）結束 -->
+    </article>
+    <div v-if="!loading && pagedItems.length === 0" class="alert alert-warning py-2">沒有符合條件的商品。</div>
+  </main>
+  <!-- 商品盤點列表 結束 -->
+
+  <!-- Pager 分頁 開始 -->
+  <nav class="pagination-bar py-2" aria-label="商品分頁">
+    <button class="btn btn-primary btn-sm" type="button" :disabled="currentPage <= 1" @click="currentPage--"><i class="bi bi-chevron-left"></i> PREV</button>
+    <strong>{{ currentPage }}/{{ totalPages }}</strong>
+    <button class="btn btn-primary btn-sm" type="button" :disabled="currentPage >= totalPages" @click="currentPage++">NEXT <i class="bi bi-chevron-right"></i></button>
+  </nav>
+  <!-- Pager 分頁 結束 -->
+
+  <!-- 商品新增／編輯 Lightbox 開始 -->
+  <div class="modal fade" id="productModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable"><div class="modal-content">
+      <div class="modal-header"><h2 class="modal-title fs-5">{{ editMode ? '編輯盤點' : '新增盤點' }}</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button></div>
+      <form @submit.prevent="saveProduct" class="d-flex flex-column overflow-hidden">
+        <!-- 商品表單：格線 Table 開始 -->
+        <div class="modal-body p-2">
+          <table class="form-grid-table"><tbody>
+            <!-- 庫存 ID：最大編號加一，純文字唯讀 開始 -->
+            <tr><th scope="row">庫存 ID</th><td><span class="stock-id-plain">{{ productForm.stock_id }}</span><div v-if="!editMode" class="text-secondary small">自動編號，不需填寫</div></td></tr>
+            <!-- 庫存 ID：最大編號加一，純文字唯讀 結束 -->
+            <tr><th scope="row">產品 ID</th><td><input class="form-control form-control-sm" v-model.trim="productForm.product_id" placeholder="例如 SN001" required></td></tr>
+            <tr><th scope="row">產品名稱</th><td><input class="form-control form-control-sm" v-model.trim="productForm.product_title" placeholder="請輸入商品名稱" required></td></tr>
+            <tr><th scope="row">產品批號</th><td><input class="form-control form-control-sm" v-model.trim="productForm.product_lot" placeholder="例如 LOT001"></td></tr>
+            <!-- 手動參考 Tag：純 HTML，不連動輸入框 開始 -->
+            <tr><th scope="row">產品分類</th><td><input class="form-control form-control-sm" v-model.trim="productForm.product_kind" placeholder="例如 零食，也可自訂" required><div class="tag-help"><span>零食</span><span>電子</span><span>五金</span></div></td></tr>
+            <tr><th scope="row">單位</th><td><input class="form-control form-control-sm" v-model.trim="productForm.product_unit" placeholder="例如 包、盒、個" required><div class="tag-help"><span>包</span><span>盒</span><span>個</span><span>瓶</span><span>支</span><span>條</span><span>組</span></div></td></tr>
+            <!-- 手動參考 Tag：純 HTML，不連動輸入框 結束 -->
+            <tr><th scope="row">效期</th><td><div class="expiry-date-row"><input class="form-control form-control-sm" style="flex:1 1 145px" type="date" v-model="expiryDate" :disabled="expiryNone" :required="!expiryNone"><label class="small text-nowrap"><input type="checkbox" v-model="expiryNone" class="form-check-input me-1">無效期</label></div></td></tr>
+            <tr><th scope="row">帳面數量</th><td><input class="form-control form-control-sm" type="number" min="0" step="1" v-model="productForm.stock_qty" placeholder="請輸入帳面庫存" required></td></tr>
+            <tr><th scope="row">庫存區域</th><td><input class="form-control form-control-sm" v-model.trim="productForm.stock_area" placeholder="例如 A1，也可自訂" required><div class="tag-help"><span>A1</span><span>A2</span><span>B1</span><span>B2</span><span>C1</span><span>C2</span></div></td></tr>
+            <!-- 商品有效由試算表維護；表單不開放修改 開始 -->
+            <!-- product_alive 欄位保留於資料物件，不在本表單顯示 -->
+            <!-- 商品有效由試算表維護；表單不開放修改 結束 -->
+            <!-- 上下架 Radio 開始 -->
+            <tr><th scope="row">上架狀態</th><td>
+              <label class="form-check form-check-inline mb-0"><input class="form-check-input" type="radio" name="product_on_v6" value="TRUE" v-model="productForm.product_on">上架</label>
+              <label class="form-check form-check-inline mb-0"><input class="form-check-input" type="radio" name="product_on_v6" value="FALSE" v-model="productForm.product_on">下架</label>
+            </td></tr>
+            <!-- 上下架 Radio 結束 -->
+            <tr><th scope="row">商品備註</th><td><textarea class="form-control form-control-sm" rows="3" v-model="productForm.product_note" placeholder="請輸入商品備註"></textarea></td></tr>
+          </tbody></table>
+        </div>
+        <!-- 商品表單：格線 Table 結束 -->
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button><button type="submit" class="btn btn-primary">模擬儲存</button></div>
+      </form>
+    </div></div>
+  </div>
+  <!-- 商品新增／編輯 Lightbox 結束 -->
+
+  <!-- 修改備註 Lightbox 開始 -->
+  <div class="modal fade" id="noteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+      <div class="modal-header"><h3 class="modal-title fs-5">{{ noteItem?.stock_id }}　{{ noteItem?.product_title }}</h3><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button></div>
+      <form @submit.prevent="saveNote"><div class="modal-body"><label class="form-label">商品備註</label><textarea class="form-control" v-model="noteText" rows="4" placeholder="請輸入備註"></textarea></div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button><button type="submit" class="btn btn-primary">模擬儲存</button></div></form>
+    </div></div>
+  </div>
+  <!-- 修改備註 Lightbox 結束 -->
+</div>
+<!-- 應用程式 結束 -->
+
+<!-- Vue 3 主程式 開始 -->
+<script type="module">
+  import { createApp, ref, reactive, computed, watch, onMounted } from 'https://unpkg.com/vue@3/dist/vue.esm-browser.js';
+
+  // Google Sheet CSV 共用設定 開始
+  const publicID = '2PACX-1vT_9h7ZJ7i1V6xUvD1MeF7b3X6JjmysLpytTjCc5hvOP0b_CpDkCxjCki2qQ6FwnM7aA94DJdNtoDlZ';
+  const gidMap = { product: '1882716339', history: '1135782892', user: '2091206011', page: '295094548' };
+  const getCsvUrl = gid => `https://docs.google.com/spreadsheets/d/e/${publicID}/pub?gid=${gid}&single=true&output=csv`;
+  // Google Sheet CSV 共用設定 結束
+
+  // CSV 解析：第 4 列英文 Key，第 5 列中文欄名，第 6 列資料 開始
+  async function fetchSheet(gid) {
+    const response = await fetch(getCsvUrl(gid), { cache: 'no-store' });
+    if (!response.ok) throw new Error(`gid=${gid} HTTP ${response.status}`);
+    const csv = await response.text();
+    const result = Papa.parse(csv, { skipEmptyLines: false });
+    if (result.errors.length) throw new Error(`gid=${gid} CSV 解析失敗：${result.errors[0].message}`);
+    const rows = result.data;
+    if (rows.length < 5) throw new Error(`gid=${gid} 不足 5 列，請確認已發布的 CSV`);
+    const keys = rows[3].map(value => String(value ?? '').replace(/^\uFEFF/, '').trim());
+    if (!keys.some(Boolean)) throw new Error(`gid=${gid} 第 4 列沒有英文 Key`);
+    return rows.slice(5).filter(row => row.some(cell => String(cell ?? '').trim() !== ''))
+      .map(row => Object.fromEntries(keys.map((key, i) => [key, String(row[i] ?? '').trim()]).filter(([key]) => key)));
+  }
+  // CSV 解析 結束
+
+  // 日期、數量、權限共用工具 開始
+  const isTrue = value => String(value ?? '').toUpperCase() === 'TRUE';
+  const isUncounted = value => value === '' || value === null || value === undefined;
+  const localDate = (date = new Date()) => [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
+  const compactDate = () => localDate().replaceAll('-', '');
+  const localTime = () => { const d = new Date(); return `${localDate(d)} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`; };
+  function isExpired(value) {
+    const s = String(value ?? '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+    const d = new Date(`${s}T00:00:00`);
+    return !Number.isNaN(d.getTime()) && localDate(d) === s && s < localDate();
+  }
+  const normalizedStatus = item => ['正常', '異常'].includes(item.stock_status) ? item.stock_status : '未盤';
+  const displayNum = value => isUncounted(value) ? '—' : value;
+  const formatDiff = value => isUncounted(value) ? '—' : Number(value) > 0 ? `+${value}` : value;
+  // 日期、數量、權限共用工具 結束
+
+  createApp({
+    setup() {
+      // Vue 資料與篩選變數 開始
+      const items = ref([]);
+      const histories = ref([]);
+      const users = ref([]);
+      const pageText = reactive({});
+      const loading = ref(true);
+      const loadError = ref('');
+      const urlUser = new URLSearchParams(location.search).get('user')?.trim() || 'GUEST';
+      const userInfo = computed(() => users.value.find(u => u.check_id.toUpperCase() === urlUser.toUpperCase()) || users.value.find(u => u.check_id === 'GUEST') || { check_id: 'GUEST', check_user: '訪客', auth_edit: 'FALSE', auth_check: 'FALSE' });
+      const canEdit = computed(() => isTrue(userInfo.value.auth_edit));
+      const canCheck = computed(() => isTrue(userInfo.value.auth_check));
+      const checkBatch = computed(() => `${compactDate()}-${userInfo.value.check_id}`);
+      const filterArea = ref('全部');
+      const filterStatus = ref('全部');
+      const filterCategory = ref('全部');
+      const filterOn = ref('全部');
+      const keyword = ref('');
+      const currentPage = ref(1);
+      const pageSize = 5;
+      const inputQty = reactive({});
+      const expandedItems = reactive({});
+      function toggleDetails(stockId) { expandedItems[stockId] = !expandedItems[stockId]; }
+      // Vue 資料與篩選變數 結束
+
+      // 四張 CSV 載入 開始
+      async function loadAll() {
+        loading.value = true;
+        loadError.value = '';
+        try {
+          const [productRows, historyRows, userRows, pageRows] = await Promise.all([
+            fetchSheet(gidMap.product), fetchSheet(gidMap.history), fetchSheet(gidMap.user), fetchSheet(gidMap.page)
+          ]);
+          items.value = productRows;
+          histories.value = historyRows;
+          users.value = userRows;
+          Object.keys(pageText).forEach(k => delete pageText[k]);
+          Object.assign(pageText, pageRows[0] || {});
+          Object.keys(inputQty).forEach(k => delete inputQty[k]);
+          Object.keys(expandedItems).forEach(k => delete expandedItems[k]);
+          items.value.forEach(item => { inputQty[item.stock_id] = isUncounted(item.stock_count) ? '' : String(item.stock_count); });
+          currentPage.value = 1;
+        } catch (error) {
+          loadError.value = `讀取失敗：${error.message}`;
+          console.error(error);
+        } finally { loading.value = false; }
+      }
+      onMounted(loadAll);
+      // 四張 CSV 載入 結束
+
+      // 商品可見性、篩選與分頁 開始
+      const visibleItems = computed(() => canEdit.value ? items.value : items.value.filter(item => isTrue(item.product_on)));
+      const areaOptions = computed(() => [...new Set(visibleItems.value.map(item => item.stock_area).filter(Boolean))].sort());
+      const categoryOptions = computed(() => ['全部', ...new Set(visibleItems.value.map(item => item.product_kind).filter(Boolean))]);
+      const filteredItems = computed(() => visibleItems.value.filter(item => {
+        const q = keyword.value.toLowerCase();
+        return (filterArea.value === '全部' || item.stock_area === filterArea.value)
+          && (filterStatus.value === '全部' || normalizedStatus(item) === filterStatus.value)
+          && (filterCategory.value === '全部' || item.product_kind === filterCategory.value)
+          && (!canEdit.value || filterOn.value === '全部' || (filterOn.value === '已上架' ? isTrue(item.product_on) : !isTrue(item.product_on)))
+          && (!q || [item.stock_id, item.product_id, item.product_title, item.product_note, item.product_lot].some(value => String(value ?? '').toLowerCase().includes(q)));
+      }));
+      const totalPages = computed(() => Math.max(1, Math.ceil(filteredItems.value.length / pageSize)));
+      const pagedItems = computed(() => filteredItems.value.slice((currentPage.value - 1) * pageSize, currentPage.value * pageSize));
+      const statusCount = status => visibleItems.value.filter(item => normalizedStatus(item) === status).length;
+      watch([filterArea, filterStatus, filterCategory, filterOn, keyword], () => { currentPage.value = 1; });
+      watch(totalPages, count => { if (currentPage.value > count) currentPage.value = count; });
+      // 商品可見性、篩選與分頁 結束
+
+      // 單筆盤點：模擬寫入 callback 成功 開始
+      function submitOne(item) {
+        if (!canCheck.value || !isTrue(item.product_on)) return;
+        const raw = String(inputQty[item.stock_id] ?? '').trim();
+        const qty = raw === '' ? null : Number(raw);
+        if (qty !== null && (!Number.isSafeInteger(qty) || qty < 0)) return alert('請輸入空值，或 0 以上整數');
+        const diff = qty === null ? null : qty - Number(item.stock_qty);
+        if (qty !== null && (!Number.isFinite(diff))) return alert('帳面數量無效，無法計算差異');
+        const payload = { ...item, stock_count: qty === null ? '' : String(qty), stock_diff: diff === null ? '' : String(diff), stock_status: qty === null ? '未盤' : diff === 0 ? '正常' : '異常', check_batch: checkBatch.value, check_time: localTime(), check_id: userInfo.value.check_id, check_user: userInfo.value.check_user };
+        alert('模擬 fetch callback：單筆盤點寫入成功（沒有實際寫入）\n' + JSON.stringify(payload, null, 2));
+        Object.assign(item, payload);
+        histories.value.unshift({ ...payload });
+      }
+      // 單筆盤點：模擬寫入 callback 成功 結束
+
+      // 商品新增／編輯 Modal 開始
+      const productForm = reactive({});
+      const editMode = ref(false);
+      const expiryNone = ref(true);
+      const expiryDate = ref('');
+      let editingId = '';
+      function nextStockId() {
+        const max = items.value.reduce((n, item) => { const match = /^ST(\d+)$/i.exec(String(item.stock_id)); return match ? Math.max(n, Number(match[1])) : n; }, 0);
+        return `ST${String(max + 1).padStart(3, '0')}`;
+      }
+      function openProductModal(item) {
+        if (!canEdit.value) return;
+        editMode.value = Boolean(item);
+        editingId = item?.stock_id || '';
+        Object.keys(productForm).forEach(k => delete productForm[k]);
+        Object.assign(productForm, item ? { ...item } : {
+          stock_id: nextStockId(), product_id: '', product_lot: '', product_kind: '', product_title: '', product_unit: '', product_expiry: '無', product_alive: 'TRUE', product_on: 'TRUE', stock_qty: '', stock_count: '', stock_diff: '', stock_status: '未盤', stock_area: '', check_batch: '', check_time: '', check_id: '', check_user: '', product_note: ''
+        });
+        expiryNone.value = !/^\d{4}-\d{2}-\d{2}$/.test(String(productForm.product_expiry || ''));
+        expiryDate.value = expiryNone.value ? '' : productForm.product_expiry;
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('productModal')).show();
+      }
+      function saveProduct() {
+        if (!canEdit.value) return;
+        const qty = Number(productForm.stock_qty);
+        if (!Number.isSafeInteger(qty) || qty < 0) return alert('帳面數量必須是 0 以上整數');
+        if (!expiryNone.value && !/^\d{4}-\d{2}-\d{2}$/.test(expiryDate.value)) return alert('請選擇有效期限');
+        const payload = { ...productForm, product_expiry: expiryNone.value ? '無' : expiryDate.value, stock_id: editMode.value ? editingId : nextStockId(), stock_qty: String(qty) };
+        if (!isUncounted(payload.stock_count)) {
+          const count = Number(payload.stock_count);
+          const diff = count - qty;
+          payload.stock_diff = String(diff);
+          payload.stock_status = diff === 0 ? '正常' : '異常';
+        }
+        alert(`模擬 fetch callback：${editMode.value ? '編輯' : '新增'}商品成功（沒有實際寫入）\n` + JSON.stringify(payload, null, 2));
+        if (editMode.value) {
+          const target = items.value.find(item => item.stock_id === editingId);
+          if (target) Object.assign(target, payload);
+        } else {
+          items.value.unshift(payload);
+          inputQty[payload.stock_id] = '';
+          filterArea.value = '全部'; filterStatus.value = '全部'; filterCategory.value = '全部'; filterOn.value = '全部'; keyword.value = '';
+          currentPage.value = 1;
+        }
+        bootstrap.Modal.getInstance(document.getElementById('productModal')).hide();
+      }
+      // 商品新增／編輯 Modal 結束
+
+      // 修改備註 Modal 開始
+      const noteItem = ref(null);
+      const noteText = ref('');
+      function openNoteModal(item) {
+        if (!canCheck.value || !isTrue(item.product_on)) return;
+        noteItem.value = item;
+        noteText.value = item.product_note || '';
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('noteModal')).show();
+      }
+      function saveNote() {
+        if (!canCheck.value || !noteItem.value) return;
+        const payload = { stock_id: noteItem.value.stock_id, product_note: noteText.value, check_id: userInfo.value.check_id, check_batch: checkBatch.value };
+        alert('模擬 fetch callback：備註更新成功（沒有實際寫入）\n' + JSON.stringify(payload, null, 2));
+        noteItem.value.product_note = noteText.value;
+        bootstrap.Modal.getInstance(document.getElementById('noteModal')).hide();
+      }
+      // 修改備註 Modal 結束
+
+      // Vue 模板輸出 開始
+      return { items, histories, pageText, loading, loadError, loadAll, userInfo, canEdit, canCheck, checkBatch,
+        filterArea, filterStatus, filterCategory, filterOn, keyword, currentPage,
+        visibleItems, areaOptions, categoryOptions, filteredItems, pagedItems, totalPages, inputQty, expandedItems, toggleDetails, statusCount,
+        isTrue, isUncounted, isExpired, normalizedStatus, displayNum, formatDiff, submitOne,
+        productForm, editMode, expiryNone, expiryDate, openProductModal, saveProduct, noteItem, noteText, openNoteModal, saveNote };
+      // Vue 模板輸出 結束
+    }
+  }).mount('#app');
+</script>
+<!-- Vue 3 主程式 結束 -->
+</body>
+</html>

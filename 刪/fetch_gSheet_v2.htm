@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>fetch_gSheet_v2 - CSV Key 測試</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    body { font-family: Arial, 'Microsoft JhengHei', sans-serif; padding: 12px; line-height: 1.5; }
+    button { margin: 0 6px 6px 0; padding: 7px 10px; cursor: pointer; }
+    button.active { background: #1464c0; color: white; border: 1px solid #1464c0; }
+    table { border-collapse: collapse; font-size: 13px; margin: 8px 0 14px; }
+    th, td { border: 1px solid #bbb; padding: 4px 8px; text-align: left; }
+    th { background: #f0f0f0; }
+    ul { padding-left: 24px; }
+    li { margin-bottom: 8px; overflow-wrap: anywhere; font-family: Consolas, 'Microsoft JhengHei', monospace; font-size: 13px; }
+    .error, .unknown { color: #c00; }
+    .hint { color: #666; font-size: 13px; }
+  </style>
+</head>
+<body>
+<!-- Vue 應用程式 開始 -->
+<div id="app">
+  <h3>Google Sheet CSV / 英文 Key 測試 v2</h3>
+  <!-- 工作表切換 開始 -->
+  <button v-for="(gid, name) in gidMap" :key="name" :class="{active: current === name}" @click="load(name)">
+    {{ titles[name] }} (gid={{ gid }})
+  </button>
+  <!-- 工作表切換 結束 -->
+
+  <p>{{ titles[current] }}：{{ records.length }} 筆 <span v-if="loading">（讀取中...）</span></p>
+  <p v-if="error" class="error">{{ error }}</p>
+  <p class="hint">第 4 列是中文欄名（Key），第 5 列略過，第 6 列開始是資料。未對應欄名會保留成 col1、col2…，方便檢查。</p>
+
+  <!-- 中英文 Key 對照表 開始 -->
+  <h4>中英文 Key 對照表</h4>
+  <table v-if="columns.length">
+    <thead><tr><th>欄位</th><th>中文 Key（CSV 第 4 列）</th><th>英文 Key（JSON）</th></tr></thead>
+    <tbody>
+      <tr v-for="(col, i) in columns" :key="i">
+        <td>{{ i + 1 }}</td>
+        <td>{{ col.zh || '（空白）' }}</td>
+        <td :class="{unknown: !col.mapped}">{{ col.en }}<span v-if="!col.mapped">（未對應）</span></td>
+      </tr>
+    </tbody>
+  </table>
+  <p v-else class="hint">讀取後顯示對照表。</p>
+  <!-- 中英文 Key 對照表 結束 -->
+
+  <!-- 英文 Key 資料清單 開始 -->
+  <h4>資料列表（英文 Key JSON）</h4>
+  <ul>
+    <li v-for="(item, idx) in records" :key="idx">{{ idx + 1 }}. {{ JSON.stringify(item) }}</li>
+  </ul>
+  <!-- 英文 Key 資料清單 結束 -->
+</div>
+<!-- Vue 應用程式 結束 -->
+
+<!-- Vue / CSV 腳本 開始 -->
+<script>
+const { createApp, ref } = Vue;
+
+// 共用 Google Sheet 設定 開始
+const publicID = '2PACX-1vT_9h7ZJ7i1V6xUvD1MeF7b3X6JjmysLpytTjCc5hvOP0b_CpDkCxjCki2qQ6FwnM7aA94DJdNtoDlZ';
+const gidMap = {
+  product: '1882716339',
+  history: '1135782892',
+  user: '2091206011',
+  content: '295094548'
+};
+const titles = { product: '商品主表', history: '盤點歷史', user: '盤點人員', content: '網頁文案' };
+const getCsvUrl = gid => `https://docs.google.com/spreadsheets/d/e/${publicID}/pub?gid=${gid}&single=true&output=csv`;
+// 共用 Google Sheet 設定 結束
+
+// 中英文 Key 對照設定 開始
+// 以實際 CSV 第 4 列中文表頭為準；若新表有不同中文名稱，在對應表新增即可。
+const keyMaps = {
+  product: {
+    '產編':'id', '商品編號':'id', '商品名稱':'productName', '品名':'productName',
+    '產品分類':'category', '商品分類':'category', '分類':'category', '單位':'unit',
+    '帳面庫存':'stockSys', '帳面數量':'stockSys', '系統庫存':'stockSys',
+    '實盤數量':'stockQty', '盤點數量':'stockQty', '盤點差異':'stockDiff',
+    '盤點狀態':'checkStatus', '盤點日期':'checkDate', '盤點人員':'checkUser',
+    '庫存區域':'area', '區域':'area', '備註':'note', '盤點批次':'checkBatch'
+  },
+  history: {
+    '盤點批次':'checkBatch', '盤點批次編號':'checkBatch', '盤點時間':'checkTime',
+    '產編':'id', '商品編號':'id', '商品名稱':'productName', '產品分類':'category',
+    '庫存區域':'area', '單位':'unit', '帳面庫存':'stockSys', '帳面數量':'stockSys',
+    '實盤數量':'stockQty', '盤點數量':'stockQty', '盤點差異':'stockDiff',
+    '盤點狀態':'checkStatus', '盤點人員':'checkUser', '人員ID':'userId', '備註':'note'
+  },
+  user: {
+    '人員ID':'id', '盤點員ID':'id', '盤點人員':'name', '人員姓名':'name',
+    '姓名':'name', '身分':'role', '角色':'role', '備註':'note'
+  },
+  content: {
+    '編號':'id', 'ID':'id', '代碼':'key', '鍵值':'key', '名稱':'name',
+    '標題':'title', '副標題':'subtitle', '內容':'content', '文案':'content',
+    '說明':'description', '描述':'description', '備註':'note',
+    '排序':'sort', '狀態':'status', '啟用':'enabled',
+    'TITLE_1':'title1', 'NOTE_1':'note1', 'NOTE_2':'note2', 'NOTE_3':'note3'
+  }
+};
+// 中英文 Key 對照設定 結束
+
+// CSV 解析 開始：支援引號、逗號及換行
+function parseCSV(text) {
+  const rows = [];
+  let row = [], field = '', quoted = false;
+  text = text.replace(/^\uFEFF/, '');
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === '"') {
+      if (quoted && text[i + 1] === '"') { field += '"'; i++; }
+      else quoted = !quoted;
+    } else if (c === ',' && !quoted) {
+      row.push(field); field = '';
+    } else if ((c === '\n' || c === '\r') && !quoted) {
+      if (c === '\r' && text[i + 1] === '\n') i++;
+      row.push(field); rows.push(row); row = []; field = '';
+    } else field += c;
+  }
+  if (field !== '' || row.length) { row.push(field); rows.push(row); }
+  return rows;
+}
+// CSV 解析 結束
+
+// Vue 資料與 Fetch 開始
+createApp({
+  setup() {
+    const records = ref([]);
+    const columns = ref([]);
+    const current = ref('product');
+    const loading = ref(false);
+    const error = ref('');
+    let requestToken = 0;
+
+    async function load(name) {
+      const token = ++requestToken;
+      current.value = name;
+      records.value = [];
+      columns.value = [];
+      error.value = '';
+      loading.value = true;
+      try {
+        const res = await fetch(getCsvUrl(gidMap[name]), { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const rows = parseCSV(await res.text());
+        if (token !== requestToken) return;
+        if (rows.length < 4) throw new Error(`CSV 只有 ${rows.length} 列，找不到第 4 列欄名`);
+        const header = rows[3];
+        const map = keyMaps[name];
+        const used = new Set();
+        const resultColumns = header.map((raw, i) => {
+          const zh = raw.trim();
+          const mappedKey = map[zh];
+          let en = mappedKey || `col${i + 1}`;
+          if (used.has(en)) en = `${en}_${i + 1}`;
+          used.add(en);
+          return { zh, en, mapped: Boolean(mappedKey) };
+        });
+        columns.value = resultColumns;
+        records.value = rows.slice(5)
+          .filter(row => row.some(value => value.trim() !== ''))
+          .map(row => Object.fromEntries(resultColumns.map((col, i) => [col.en, row[i] ?? ''])));
+      } catch (e) {
+        if (token === requestToken) error.value = `讀取失敗：${e.message}`;
+      } finally {
+        if (token === requestToken) loading.value = false;
+      }
+    }
+
+    load('product');
+    return { records, columns, current, loading, error, gidMap, titles, load };
+  }
+}).mount('#app');
+// Vue 資料與 Fetch 結束
+</script>
+<!-- Vue / CSV 腳本 結束 -->
+</body>
+</html>

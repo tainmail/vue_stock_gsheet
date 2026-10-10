@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>fetch_gSheet_v1 - CSV 測試</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    body { font-family: Arial, 'Microsoft JhengHei', sans-serif; padding: 12px; line-height: 1.5; }
+    button { margin-right: 6px; padding: 7px 12px; cursor: pointer; }
+    ul { padding-left: 24px; }
+    li { margin-bottom: 7px; overflow-wrap: anywhere; }
+    .error { color: #c00; }
+    .hint { color: #666; font-size: 13px; }
+  </style>
+</head>
+<body>
+<!-- Vue 應用程式 開始 -->
+<div id="app">
+  <h3>Google Sheet CSV 測試</h3>
+  <button v-for="(gid, name) in gidMap" :key="name" @click="load(name)">{{ titles[name] }}</button>
+  <p>{{ title }}：{{ records.length }} 筆 <span v-if="loading">（讀取中...）</span></p>
+  <p v-if="error" class="error">{{ error }}</p>
+  <p class="hint">第 5 列為欄名，第 6 列開始為資料；每個 li 為一筆資料。</p>
+  <ul>
+    <li v-for="(item, idx) in records" :key="idx">{{ idx + 1 }}. {{ JSON.stringify(item) }}</li>
+  </ul>
+</div>
+<!-- Vue 應用程式 結束 -->
+
+<!-- Vue / CSV 腳本 開始 -->
+<script>
+const { createApp, ref } = Vue;
+
+const publicID = '2PACX-1vT_9h7ZJ7i1V6xUvD1MeF7b3X6JjmysLpytTjCc5hvOP0b_CpDkCxjCki2qQ6FwnM7aA94DJdNtoDlZ';
+const gidMap = {
+  product: '1882716339',
+  history: '1135782892',
+  user: '2091206011'
+};
+const titles = { product: '商品主表', history: '盤點歷史', user: '盤點人員' };
+const getCsvUrl = gid => `https://docs.google.com/spreadsheets/d/e/${publicID}/pub?gid=${gid}&single=true&output=csv`;
+
+// CSV 解析 開始：支援雙引號、逗號、換行
+function parseCSV(text) {
+  const rows = [];
+  let row = [], field = '', quoted = false;
+  text = text.replace(/^\uFEFF/, '');
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === '"') {
+      if (quoted && text[i + 1] === '"') { field += '"'; i++; }
+      else quoted = !quoted;
+    } else if (c === ',' && !quoted) {
+      row.push(field); field = '';
+    } else if ((c === '\n' || c === '\r') && !quoted) {
+      if (c === '\r' && text[i + 1] === '\n') i++;
+      row.push(field); rows.push(row); row = []; field = '';
+    } else field += c;
+  }
+  if (field !== '' || row.length) { row.push(field); rows.push(row); }
+  return rows;
+}
+// CSV 解析 結束
+
+createApp({
+  setup() {
+    const records = ref([]);
+    const title = ref('');
+    const loading = ref(false);
+    const error = ref('');
+
+    // 讀取工作表 開始
+    async function load(name) {
+      title.value = titles[name];
+      records.value = [];
+      error.value = '';
+      loading.value = true;
+      try {
+        const res = await fetch(getCsvUrl(gidMap[name]), { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const rows = parseCSV(await res.text());
+        if (rows.length < 5) throw new Error(`CSV 只有 ${rows.length} 列，找不到第 5 列欄名`);
+        const keys = rows[4].map(key => key.trim());
+        records.value = rows.slice(5)
+          .filter(row => row.some(value => value.trim() !== ''))
+          .map(row => Object.fromEntries(keys.map((key, i) => [key || `欄${i + 1}`, row[i] ?? ''])));
+      } catch (e) {
+        error.value = `讀取失敗：${e.message}`;
+      } finally {
+        loading.value = false;
+      }
+    }
+    // 讀取工作表 結束
+
+    load('product');
+    return { records, title, loading, error, gidMap, titles, load };
+  }
+}).mount('#app');
+</script>
+<!-- Vue / CSV 腳本 結束 -->
+</body>
+</html>
