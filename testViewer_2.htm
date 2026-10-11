@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>寵物用品權限展示</title>
+    <!-- Bootstrap 4 CSS CDN -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+    <!-- Vue 2 CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.7.16/dist/vue.js"></script>
+    <style>
+        .bg-subtle-blue { background-color: #eef6ff !important; }
+        .bg-subtle-green { background-color: #f0fdf4 !important; }
+        .card-img-placeholder {
+            height: 100px;
+            font-size: 1.2rem;
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body class="bg-light">
+	<p>
+		<a href="https://docs.google.com/spreadsheets/d/1raAVRI1rs-OOT8HOqR6LC9tdH-0JjlWEUcxEnIO1h4E/edit?gid=1134955881#gid=1134955881">
+			https://docs.google.com/spreadsheets/d/1raAVRI1rs-OOT8HOqR6LC9tdH-0JjlWEUcxEnIO1h4E/edit?gid=1134955881#gid=1134955881
+		</a>
+	</p>
+
+    <div id="app" class="container py-3" style="max-width: 600px;">
+        <!-- 頂部身份選擇與狀態 -->
+        <div class="card shadow-sm mb-3">
+            <div class="card-body p-3">
+                <h5 class="card-title text-center mb-2">🐾 寵物選物商城</h5>
+                <p class="text-muted text-center small mb-2">
+                    目前身分：<strong class="text-dark">{{ currentUser ? currentUser.user_name : '未登入訪客' }}</strong>
+                    <span v-if="currentViewerTag" class="badge badge-secondary ml-1">{{ currentViewerTag }}</span>
+                </p>
+                
+                <!-- 按鈕切換不同角色 -->
+                <div class="d-flex justify-content-center flex-wrap gap-1">
+                    <button @click="switchUser('')" 
+                            class="btn btn-sm m-1"
+                            :class="!currentViewerName ? 'btn-dark' : 'btn-outline-secondary'">
+                        無參數 (訪客)
+                    </button>
+                    <button v-for="user in users" :key="user.account" 
+                            @click="switchUser(user.user_name)"
+                            class="btn btn-sm m-1"
+                            :class="currentViewerName === user.user_name ? 'btn-primary' : 'btn-outline-secondary'">
+                        {{ user.user_name }}
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 未帶參數 / 無權限提示 -->
+        <div v-if="!currentUser" class="alert alert-warning text-center shadow-sm">
+            🔒 <strong>請選擇身分或帶入網址參數</strong><br>
+            例如：<code>?viewer=陳小明</code>，訪客預設無法觀看任何商品。
+        </div>
+
+        <!-- 產品列表（一排兩欄） -->
+        <div v-else>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="text-muted small">可見商品數量：<strong>{{ filteredProducts.length }}</strong> 項</span>
+            </div>
+
+            <div class="row row-cols-2 mx-n1">
+                <div v-for="item in filteredProducts" :key="item.product_code" class="col px-1 mb-2">
+                    <div class="card h-100 shadow-sm border-0" :class="getCardBg(item.viewer_tag)">
+                        <!-- 假圖片佔位符 -->
+                        <div class="card-img-placeholder d-flex align-items-center justify-content-center font-weight-bold text-muted border-bottom bg-white rounded-top">
+                            {{ item.viewer_tag === 'viewer_dog' ? '狗用 🐶' : '貓用 🐱' }}
+                        </div>
+                        <div class="card-body p-2 d-flex flex-column justify-content-between">
+                            <div>
+                                <span class="badge mb-1" :class="item.viewer_tag === 'viewer_dog' ? 'badge-primary' : 'badge-success'">
+                                    {{ item.viewer_tag === 'viewer_dog' ? '狗用品' : '貓用品' }}
+                                </span>
+                                <h6 class="card-title text-truncate mb-1 small font-weight-bold" :title="item.product_name">
+                                    {{ item.product_name }}
+                                </h6>
+                            </div>
+                            <small class="text-muted text-monospace font-weight-light">{{ item.product_code }}</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 模擬 JSON 資料（精簡為 3 種主人、10 項商品）
+        const dbData = {
+            "users": [
+                { "account": "user_01", "user_name": "陳小明", "role": "狗主人", "viewer_tag": "viewer_dog" },
+                { "account": "user_02", "user_name": "林美玲", "role": "貓主人", "viewer_tag": "viewer_cat" },
+                { "account": "user_03", "user_name": "張大衛", "role": "貓狗主人", "viewer_tag": "viewer_dog, viewer_cat" }
+            ],
+            "products": [
+                // 狗用品 (5項)
+                { "product_code": "p_001", "product_name": "頂級凍乾成犬主食糧", "viewer_tag": "viewer_dog" },
+                { "product_code": "p_002", "product_name": "耐咬牛皮壓棒玩具", "viewer_tag": "viewer_dog" },
+                { "product_code": "p_003", "product_name": "超防漏胸背帶牽引繩", "viewer_tag": "viewer_dog" },
+                { "product_code": "p_004", "product_name": "深層潔淨低敏洗毛精", "viewer_tag": "viewer_dog" },
+                { "product_code": "p_005", "product_name": "透氣加厚四季通用狗窩", "viewer_tag": "viewer_dog" },
+                // 貓用品 (5項)
+                { "product_code": "p_006", "product_name": "低粉塵天然豆腐貓砂", "viewer_tag": "viewer_cat" },
+                { "product_code": "p_007", "product_name": "鮮肉無穀貓罐頭多汁包", "viewer_tag": "viewer_cat" },
+                { "product_code": "p_008", "product_name": "多層實木豪華貓跳台", "viewer_tag": "viewer_cat" },
+                { "product_code": "p_009", "product_name": "天然手作耐磨貓抓板", "viewer_tag": "viewer_cat" },
+                { "product_code": "p_010", "product_name": "自動循環流動活水機", "viewer_tag": "viewer_cat" }
+            ]
+        };
+
+        new Vue({
+            el: '#app',
+            data: {
+                users: dbData.users,
+                products: dbData.products,
+                currentViewerName: '' // 預設留空（訪客無參數）
+            },
+            created() {
+                // 從網址列取得 ?viewer= 參數
+                const urlParams = new URLSearchParams(window.location.search);
+                const viewerParam = urlParams.get('viewer');
+                if (viewerParam) {
+                    this.currentViewerName = viewerParam;
+                }
+            },
+            computed: {
+                // 取得當前使用者物件
+                currentUser() {
+                    if (!this.currentViewerName) return null;
+                    return this.users.find(u => u.user_name === this.currentViewerName) || null;
+                },
+                // 取得當前使用者的 tag 字串
+                currentViewerTag() {
+                    return this.currentUser ? this.currentUser.viewer_tag : '';
+                },
+                // 根據使用者權限過濾產品
+                filteredProducts() {
+                    if (!this.currentUser) return [];
+                    const userTags = this.currentViewerTag.split(',').map(t => t.trim());
+                    
+                    return this.products.filter(item => {
+                        return userTags.includes(item.viewer_tag);
+                    });
+                }
+            },
+            methods: {
+                // 切換使用者並更新網址參數
+                switchUser(name) {
+                    this.currentViewerName = name;
+                    
+                    let newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                    if (name) {
+                        newUrl += '?viewer=' + encodeURIComponent(name);
+                    }
+                    window.history.pushState({path: newUrl}, '', newUrl);
+                },
+                // 根據標籤決定卡片背景色
+                getCardBg(tag) {
+                    return tag === 'viewer_dog' ? 'bg-subtle-blue' : 'bg-subtle-green';
+                }
+            }
+        });
+    </script>
+</body>
+</html>

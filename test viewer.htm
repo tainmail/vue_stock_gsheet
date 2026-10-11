@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>寵物用品權限展示</title>
+    <!-- Bootstrap 5 CSS CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Vue 2 CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.7.16/dist/vue.js"></script>
+</head>
+<body class="bg-light">
+
+    <div id="app" class="container py-3" style="max-width: 600px;">
+        <!-- 頂部切換與狀態列 -->
+        <div class="card shadow-sm mb-3">
+            <div class="card-body">
+                <h5 class="card-title text-center mb-2">🐾 寵物選物商城</h5>
+                <p class="text-muted text-center small mb-3">目前登入：<strong>{{ currentUser ? currentUser.user_name : '未指定' }}</strong> ({{ currentViewerTag }})</p>
+                
+                <div class="d-flex justify-content-center gap-2">
+                    <button v-for="user in users" :key="user.account" 
+                            @click="switchUser(user.user_name)"
+                            class="btn btn-sm"
+                            :class="currentUser && currentUser.account === user.account ? 'btn-dark' : 'btn-outline-secondary'">
+                        {{ user.user_name.split('（')[0] }}
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 查無權限提示 -->
+        <div v-if="!currentUser" class="alert alert-warning text-center">
+            找不到對應的使用者，請檢查網址參數 ?viewer= 姓名
+        </div>
+
+        <!-- 產品列表 -->
+        <div v-else>
+            <p class="text-muted small mb-2">可見商品數量：{{ filteredProducts.length }} 項</p>
+            <div class="row g-3">
+                <div v-for="item in filteredProducts" :key="item.product_code" class="col-12">
+                    <div class="card shadow-sm border-0" :class="getCardBg(item.viewer_tag)">
+                        <div class="card-body d-flex align-items-center">
+                            <!-- 假圖片佔位符 -->
+                            <div class="rounded bg-white text-dark d-flex align-items-center justify-content-center fw-bold me-3 shadow-sm" style="width: 80px; height: 80px; flex-shrink: 0;">
+                                {{ item.viewer_tag === 'viewer_dog' ? '狗用' : '貓用' }}
+                            </div>
+                            <div class="flex-grow-1">
+                                <span class="badge mb-1" :class="item.viewer_tag === 'viewer_dog' ? 'bg-primary' : 'bg-success'">
+                                    {{ item.viewer_tag === 'viewer_dog' ? '狗狗專區' : '貓貓專區' }}
+                                </span>
+                                <h6 class="card-title mb-1 fw-bold">{{ item.product_name }}</h6>
+                                <p class="text-muted small mb-0 font-monospace">代號：{{ item.product_code }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 模擬的 JSON 資料（與 gSheet 相同結構）
+        const dbData = {
+            "users": [
+                { "account": "user_01", "user_name": "陳小明", "viewer_tag": "viewer_dog" },
+                { "account": "user_02", "user_name": "林美玲", "viewer_tag": "viewer_cat" },
+                { "account": "user_03", "user_name": "張大衛", "viewer_tag": "viewer_dog, viewer_cat" },
+
+            ],
+            "products": [
+                { "product_code": "p_006", "product_name": "透氣加厚四季通用狗窩", "viewer_tag": "viewer_dog" },
+                { "product_code": "p_007", "product_name": "可折疊攜帶式寵物外出碗", "viewer_tag": "viewer_dog" },
+                { "product_code": "p_008", "product_name": "護關節高齡犬專用營養錠", "viewer_tag": "viewer_dog" },
+                { "product_code": "p_009", "product_name": "防暴衝訓練雙HANDLE牽繩", "viewer_tag": "viewer_dog" },
+                { "product_code": "p_010", "product_name": "戶外防水反光寵物雨衣", "viewer_tag": "viewer_dog" },
+                { "product_code": "p_011", "product_name": "低粉塵天然豆腐貓砂", "viewer_tag": "viewer_cat" },
+                { "product_code": "p_012", "product_name": "鮮肉無穀貓罐頭多汁包", "viewer_tag": "viewer_cat" },
+                { "product_code": "p_013", "product_name": "多層實木豪華貓跳台", "viewer_tag": "viewer_cat" },
+                { "product_code": "p_014", "product_name": "天然手作耐磨貓抓板", "viewer_tag": "viewer_cat" },
+                { "product_code": "p_015", "product_name": "化毛無負擔營養貓草錠", "viewer_tag": "viewer_cat" },
+             
+            ]
+        };
+
+        new Vue({
+            el: '#app',
+            data: {
+                users: dbData.users,
+                products: dbData.products,
+                currentViewerName: '陳小明' // 預設
+            },
+            created() {
+                // 從網址列取得 ?viewer=參數
+                const urlParams = new URLSearchParams(window.location.search);
+                const viewerParam = urlParams.get('viewer');
+                if (viewerParam) {
+                    this.currentViewerName = viewerParam;
+                }
+            },
+            computed: {
+                // 取得當前使用者物件
+                currentUser() {
+                    return this.users.find(u => u.user_name.includes(this.currentViewerName)) || null;
+                },
+                // 取得當前使用者的 tag 字串
+                currentViewerTag() {
+                    return this.currentUser ? this.currentUser.viewer_tag : '';
+                },
+                // 根據使用者權限過濾產品
+                filteredProducts() {
+                    if (!this.currentUser) return [];
+                    const tags = this.currentViewerTag.split(',').map(t => t.trim());
+                    
+                    return this.products.filter(item => {
+                        return tags.includes(item.viewer_tag);
+                    });
+                }
+            },
+            methods: {
+                // 切換使用者並更新網址參數
+                switchUser(fullName) {
+                    const shortName = fullName.split('（')[0];
+                    this.currentViewerName = shortName;
+                    
+                    // 改變網址而不重新整理頁面
+                    const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?viewer=' + encodeURIComponent(shortName);
+                    window.history.pushState({path: newUrl}, '', newUrl);
+                },
+                // 根據標籤決定卡片背景色
+                getCardBg(tag) {
+                    if (tag === 'viewer_dog') {
+                        return 'bg-subtle-blue border-primary-subtle'; // 狗用淺色背景
+                    } else {
+                        return 'bg-subtle-green border-success-subtle'; // 貓用淺色背景
+                    }
+                }
+            }
+        });
+    </script>
+
+    <style>
+        /* 額外輔助淺色背景樣式 */
+        .bg-subtle-blue { background-color: #f0f7ff !important; }
+        .bg-subtle-green { background-color: #f1f8f3 !important; }
+    </style>
+</body>
+</html>
