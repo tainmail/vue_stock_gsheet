@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1.2" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1.5" />
   <title>庫存盤點 v19</title>
 
   <!-- CDN 依賴 開始 -->
@@ -94,7 +94,7 @@
   <!-- 搜尋商品 結束 -->
 
   <!-- 庫存區域／盤點狀態 開始 -->
-  <section class="row g-2 mb-2">
+  <section class="row g-2 mb-4">
     <div class="col-6">
       <label class="form-label mb-1">► 庫存區域</label>
       <select class="form-select" v-model="stateFilter.area">
@@ -115,7 +115,7 @@
   <!-- 庫存區域／盤點狀態 結束 -->
 
   <!-- 產品分類 Tag Button 開始 -->
-  <section class="d-flex align-items-center flex-wrap gap-1 mb-2">
+  <section class="d-flex align-items-center flex-wrap gap-1 mb-4">
     <button v-for="c in listCategoryOptions" :key="c" type="button" class="btn btn-sm"
       :class="stateFilter.category === c ? 'btn-primary' : 'btn-secondary'"
       @click="stateFilter.category = c">{{ c }}</button>
@@ -123,26 +123,29 @@
   <!-- 產品分類 Tag Button 結束 -->
 
   <!-- 盤點統計 開始 -->
-  <section class="d-flex justify-content-between flex-wrap gap-1 small mb-2">
-    <span class="text-secondary">篩選 <strong>{{ listFilteredItems.length }}</strong> / {{ listVisibleItems.length }} 筆</span>
-    <span>
-      <span class="badge rounded-pill bg-success-subtle text-success-emphasis">正常 <strong>{{ fnStatusCount('正常') }}</strong></span>
-      <span class="badge rounded-pill bg-danger-subtle text-danger-emphasis ms-1">異常 <strong>{{ fnStatusCount('異常') }}</strong></span>
-      <span class="badge rounded-pill bg-primary-subtle text-primary-emphasis ms-1">未盤 <strong>{{ fnStatusCount('未盤') }}</strong></span>
+  <h6 class="mb-4">
+    <span class="me-2">
+      ► 篩選 {{ listFilteredItems.length }} / {{ listVisibleItems.length }} 筆
     </span>
-  </section>
+    <strong class="text-success me-2">正常 {{ fnStatusCount('正常') }}</strong>
+      <strong class="text-danger me-2">異常 {{ fnStatusCount('異常') }}</strong>
+      <strong class="text-primary me-2">未盤 {{ fnStatusCount('未盤') }}</strong>
+  </h6>
   <!-- 盤點統計 結束 -->
 
   <!-- 商品盤點列表 開始 -->
   <main>
     
     <!--篩選搜尋產品清單 開始-->
-    <article v-for="item in listFilterProduct" :key="item.stock_id" class="border rounded-1 px-2 py-2 mb-2" :class="fnIsTrue(item.product_on) ? 'bg-body' : 'bg-body-secondary'">
+    <article v-for="item in listFilterProduct" :key="item.stock_id" class="border rounded-1 px-2 py-2 mb-4" :class="fnIsTrue(item.product_on) ? 'bg-body' : 'bg-body-secondary'">
       <!--兩欄式 開始-->
       <div class="d-flex align-items-start gap-2">
         <!-- 左欄資訊 開始 -->
         <div class="flex-grow-1" style="min-width:0">
-          <div class="h5 fw-semibold mb-2"><span v-if="!fnIsTrue(item.product_on)" class="badge rounded-pill bg-danger-subtle text-danger-emphasis ms-1">已下架</span> {{ item.product_title }}</div>
+          <div class="mb-2">
+            <span v-if="!fnIsTrue(item.product_on)" class="badge rounded-pill bg-secondary text-white border border-dark me-1">已下架</span>
+            <strong class="h5 fw-semibold">{{ item.product_title }}</strong>
+          </div>
           <div class="d-flex align-items-center gap-1 flex-wrap mb-2">
             <span class="badge rounded-pill bg-primary-subtle text-primary-emphasis">帳面 <strong>{{ (fnIsUncounted(item.stock_qty) ? '—' : item.stock_qty) }}</strong>{{ item.product_unit }}</span>
             <span v-if="(item.stock_status || '未盤') === '正常'" class="badge rounded-pill bg-success-subtle text-success-emphasis">正常</span>
@@ -160,7 +163,7 @@
         <!-- 右欄 操作 開始 -->
         <div class="count-box d-flex flex-column gap-1">
           <input v-if="bCanCheck && fnIsTrue(item.product_on)" class="form-control form-control-sm" type="number" min="0" step="1" :aria-label="item.product_title + '實盤數量'" placeholder="" v-model="stateInputQty[item.stock_id]">
-          <button v-if="bCanCheck && fnIsTrue(item.product_on)" class="btn btn-warning btn-sm" type="button" @click="fnSubmitOne(item)"><i class="bi bi-check-lg me-1"></i>{{ fnIsUncounted(item.stock_count) ? '確認' : '更新' }}</button>
+          <button v-if="bCanCheck && fnIsTrue(item.product_on)" class="btn btn-dark btn-sm" type="button" @click="fnSubmitOne(item)"><i class="bi bi-check-lg me-1"></i>{{ fnIsUncounted(item.stock_count) ? '確認' : '更新' }}</button>
           <button v-if="bCanEdit" class="btn btn-success btn-sm" type="button" @click="fnOpenProductModal(item)"><i class="bi bi-pencil-square me-1"></i>編輯</button>
           <button class="btn btn-primary btn-sm" type="button" :aria-expanded="!!stateExpanded[item.stock_id]" @click="fnToggleDetails(item.stock_id)"><i class="bi bi-list-ul me-1"></i>詳情</button>
         </div>
