@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1.2" />
-  <title>庫存盤點 v17</title>
+  <title>庫存盤點 v19</title>
 
   <!-- CDN 依賴 開始 -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
@@ -16,6 +16,12 @@
     body { overscroll-behavior-y: contain; }
     [v-cloak] { display: none; }
     .app-wrap { max-width: 768px; }
+    /* 共用灰色框線加深；沿用 Bootstrap 色彩系統 */
+    :root { --bs-border-color: #8c959f; }
+    .form-control, .form-select, .form-check-input, .modal-content { border-color: var(--bs-border-color); }
+    .form-control:focus, .form-select:focus { border-color: var(--bs-primary); }
+    /* 橢圓狀態標籤使用同色系深色文字作為 1px 邊框 */
+    .badge.rounded-pill { border: 1px solid currentColor; }
     /* 全站文字提高一階；所有輔助字與狀態 Badge 不小於「新增盤點」按鈕的 16px */
     body { font-size: 1.125rem; }
     .small, small, .btn-sm, .form-control-sm, .form-select-sm, .badge { font-size: 1rem; }
@@ -45,7 +51,7 @@
   <header class="mb-2">
     <div class="d-flex justify-content-between align-items-start gap-2">
       <h1 class="h4 text-primary mb-2">{{ pageText.page_title_1 || '庫存盤點' }}</h1>
-      <small class="text-secondary text-nowrap">v17</small>
+      <small class="text-secondary text-nowrap">v19</small>
     </div>
     <h6 class="mb-1">盤點人員：{{ userInfo.check_id }} {{ userInfo.check_user }}</h6>
     <h6 class="mb-1">盤點批次：{{ checkBatch }}</h6>
@@ -111,7 +117,7 @@
   <!-- 產品分類 Tag Button 開始 -->
   <section class="d-flex align-items-center flex-wrap gap-1 mb-2">
     <button v-for="c in listCategoryOptions" :key="c" type="button" class="btn btn-sm"
-      :class="stateFilter.category === c ? 'btn-primary' : 'btn-outline-secondary'"
+      :class="stateFilter.category === c ? 'btn-primary' : 'btn-secondary'"
       @click="stateFilter.category = c">{{ c }}</button>
   </section>
   <!-- 產品分類 Tag Button 結束 -->
@@ -228,8 +234,8 @@
             <tr><th scope="row" class="bg-body-secondary">帳面數量</th><td><input class="form-control form-control-sm" type="number" min="0" step="1" v-model="productForm.stock_qty" placeholder=""></td></tr>
             <tr><th scope="row" class="bg-body-secondary">庫存區域</th><td><input class="form-control form-control-sm" v-model.trim="productForm.stock_area" placeholder="例如：A1..."><div class="mt-1 lh-lg"><span class="badge bg-body-secondary text-secondary-emphasis rounded-1 me-1">A1</span><span class="badge bg-body-secondary text-secondary-emphasis rounded-1 me-1">A2</span><span class="badge bg-body-secondary text-secondary-emphasis rounded-1 me-1">B1</span><span class="badge bg-body-secondary text-secondary-emphasis rounded-1 me-1">B2</span><span class="badge bg-body-secondary text-secondary-emphasis rounded-1 me-1">C1</span><span class="badge bg-body-secondary text-secondary-emphasis rounded-1 me-1">C2</span></div></td></tr>
             <tr><th scope="row" class="bg-body-secondary">上架狀態</th><td>
-              <label class="form-check form-check-inline mb-0"><input class="form-check-input" type="radio" name="product_on_v17" value="TRUE" v-model="productForm.product_on">上架</label>
-              <label class="form-check form-check-inline mb-0"><input class="form-check-input" type="radio" name="product_on_v17" value="FALSE" v-model="productForm.product_on">下架</label>
+              <label class="form-check form-check-inline mb-0"><input class="form-check-input" type="radio" name="product_on_v19" value="TRUE" v-model="productForm.product_on">上架</label>
+              <label class="form-check form-check-inline mb-0"><input class="form-check-input" type="radio" name="product_on_v19" value="FALSE" v-model="productForm.product_on">下架</label>
             </td></tr>
             <tr><th scope="row" class="bg-body-secondary">商品備註</th><td><textarea class="form-control form-control-sm" rows="3" v-model="productForm.product_note" placeholder="例如：熱賣品項..."></textarea></td></tr>
           </tbody></table>
