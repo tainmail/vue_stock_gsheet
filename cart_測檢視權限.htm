@@ -76,8 +76,8 @@
 
 			<!--分類選單 3 開始-->
 			<section class="btn-group mb-2 d-block" role="group">
-								<input type="radio" class="btn-check" id="kind_11" value="測寵" v-model="userForm.kind" autocomplete="off">
-				<label class="btn btn-outline-secondary" for="kind_11">測寵2</label>
+				<input type="radio" class="btn-check" id="kind_11" value="測寵" v-model="userForm.kind" autocomplete="off">
+				<label class="btn btn-outline-secondary" for="kind_11">測寵3</label>
 			</section>
 			<!--分類選單 3 結束-->
 
@@ -116,9 +116,6 @@
 
 				<input type="radio" class="btn-check" id="kind_10" value="美容保養" v-model="userForm.kind" autocomplete="off">
 				<label class="btn btn-outline-secondary" for="kind_10">美容保養</label>
-
-				<input type="radio" class="btn-check" id="kind_11" value="測寵" v-model="userForm.kind" autocomplete="off">
-				<label class="btn btn-outline-secondary" for="kind_11">測寵</label>
 			</section>
 			<!--分類選單 2 結束-->
   
@@ -688,8 +685,8 @@
 					const viewUserTags = userObj ? userObj["使用者檢視標籤"] : "";
 					const tmpProductList = gSheetData.productList.filter(item => {
 						const viewProductTag = item["產品檢視標籤"] || "";
-						// 如果產品標籤為空，則預設全部可見；
-						if (!viewProductTag) return true;
+						// 如果產品標籤為空，true全部可見 false全部不可見；
+						if (!viewProductTag) return false;
 						return viewProductTag.includes(viewUserTags);
 					});
 
