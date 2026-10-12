@@ -74,6 +74,13 @@
 		<div class="border rounded px-2 py-3" style="margin-bottom:200px;">
 			<h4 class="bg-primary text-white fs-6 px-3 py-2 rounded-pill mb-3">Step 2：產品列表搜尋</h4>
 
+			<!--分類選單 3 開始-->
+			<section class="btn-group mb-2 d-block" role="group">
+								<input type="radio" class="btn-check" id="kind_11" value="測寵" v-model="userForm.kind" autocomplete="off">
+				<label class="btn btn-outline-secondary" for="kind_11">測寵2</label>
+			</section>
+			<!--分類選單 3 結束-->
+
 			<!--分類選單 1 開始-->
 			<section class="btn-group mb-2 d-block" role="group">
 				<input type="radio" class="btn-check" id="kind_1" value="洗髮" v-model="userForm.kind" autocomplete="off">
@@ -683,7 +690,7 @@
 						const viewProductTag = item["產品檢視標籤"] || "";
 						// 如果產品標籤為空，則預設全部可見；
 						if (!viewProductTag) return true;
-						return viewUserTags.includes(viewProductTag);
+						return viewProductTag.includes(viewUserTags);
 					});
 
 					if (!userForm.keyword.trim()) return tmpProductList;
