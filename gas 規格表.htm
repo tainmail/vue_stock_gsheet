@@ -1,0 +1,80 @@
+
+https://docs.google.com/spreadsheets/d/e/2PACX-1vT_9h7ZJ7i1V6xUvD1MeF7b3X6JjmysLpytTjCc5hvOP0b_CpDkCxjCki2qQ6FwnM7aA94DJdNtoDlZ/pub?gid=1882716339&single=true&output=csv
+
+■ tab名稱："商品主表"
+gid=1882716339
+
+csv 碼
+今來盤點,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,
+stock_id,product_id,product_lot,product_kind,product_title,product_unit,product_expiry,product_alive,product_on,stock_qty,stock_count,stock_diff,stock_status,stock_area,check_batch,check_time,check_id,check_user,product_note
+庫存_ID,產品_ID,產品_廠商批號,產品_分類,產品_名稱,產品_單位,產品_效期,產品_有效,產品_上架,庫存_數量,庫存_實盤,庫存_差異,庫存_狀態,庫存_區域,盤點_批號,盤點_時間,盤點_ID,盤點_人員,產品_備註
+程式保留列,,ARRAYFORMULA ,系統保留,下架請勿改動,從第7列寫入,,TRUE,,,,,未盤,,,,,,
+ST-2026-1016-161530-123,SN002,LOT002,零食,冰棒,盒,2027-01-01,TRUE,TRUE,28,25,-3,異常,A1,20261009-U01,2026-10-09 9:01:01,U02,游邁健,冰箱保存
+ST-2026-1016-161530-124,SN003,LOT003,零食,可樂,罐,2025-01-03,FALSE,FALSE,35,39,4,異常,A1,20261009-U01,2026-10-09 9:01:02,U03,游邁健,本週銷量佳
+ST-2026-1016-161530-125,SN003,LOT004,零食,可樂,包,2025-01-04,FALSE,TRUE,42,42,0,正常,A1,20261009-U01,2026-10-09 9:01:03,U04,游邁健,成份含魚
+
+■ tab名稱："盤點歷史"
+gid=1135782892
+
+csv 碼
+盤點歷史,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,
+check_batch,check_time,check_id,check_user,stock_id,product_id,product_lot,product_kind,product_title,product_unit,product_expiry,stock_qty,stock_count,stock_diff,stock_status,stock_area,product_note
+盤點_批號,盤點_時間,盤點_ID,盤點_人員,庫存_ID,產品_ID,產品_廠商批號,產品_分類,產品_名稱,產品_單位,產品_效期,庫存_數量,庫存_實盤,庫存_差異,庫存_狀態,庫存_區域,產品_備註
+程式保留列,,,,,,,,,,,,,,,,ARRAYFORMULA 系統保留
+20261009-U01,2026-10-09 9:02:00,U02,游邁健,ST-2026-1016-161530-123,SN002,LOT002,零食,冰棒,盒,無,28,27,-1,異常,A1,冰箱保存
+20261009-U01,2026-10-09 9:03:00,U03,游邁健,ST-2026-1016-161530-124,SN003,LOT003,零食,可樂,罐,2025-01-03,35,39,4,異常,A1,本週銷量佳
+20261009-U01,2026-10-09 9:04:00,U04,游邁健,ST-2026-1016-161530-125,SN004,LOT004,零食,鱈魚香絲,包,2027-01-04,42,42,0,正常,A1,成份含魚
+
+
+
+■ tab名稱：盤點人員
+gid=2091206011
+
+csv 碼
+盤點人員,,,,
+,,,,
+,,,,
+check_id,check_user,check_type,auth_edit,auth_check
+盤點_ID,盤點_人員,盤點_類型,權限_編輯,權限_盤點
+程式保留列,,,,
+ADMIN,賣石斤,管理員,TRUE,TRUE
+GUEST,訪客,訪客,FALSE,FALSE
+U01,游邁健,盤點員,FALSE,TRUE
+
+
+■ tab名稱：網頁文案
+gid=295094548
+
+,,,
+,,,
+,,,
+page_title_1,page_note_1,page_note_2,page_note_3
+標題_1,文案_1,文案_2,文案_3
+程式保留列,,,
+勝悅 今來 ▶ 盤點3,1. 請於 週二 PM 02:00前完成。,2. 標註【缺貨】產品， 勿再下單。,3.點不完不要回家
+
+
+■ 內嵌的 gas
+https://script.google.com/macros/s/AKfycbw20jEvqacpw15rEYn4_npMyK679qYWBi2A7z4jmEt3qzMURv0d5zmdXPZiOQ_5eKYj/exec
+
+
+■
+新增一筆新的 "庫存_ID" 編號邏輯以  ST-timeStamp 為主。例如：ST-2026-1016-161530-123 
+
+
+寫入時插入 "第6列"的下一列。
+
+更新時以 "庫存_ID" 當成唯一索引值，寫入對應的資料。
+
+並同步寫入 tab名稱："盤點歷史"  "第6列"的下一列。
+
+■
+stock_v27.htm
+資料讀取、送出 請參考 "參考cart.htm" 的規畫方式
+
+■
+更新資料庫 請參考 "參考gas.htm" 的寫法。
