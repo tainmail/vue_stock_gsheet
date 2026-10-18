@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1.5" />
+  <title>庫存盤點 v34</title>
+
+  <!-- CDN 依賴 開始 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.5.3/papaparse.min.js"></script>
+
+  <!-- 樣式 開始 -->
+  <style>
+    body { overscroll-behavior-y: contain; }
+    [v-cloak] { display: none; }
+    .app-wrap { max-width: 768px; }
+    /* 共用灰色框線加深；沿用 Bootstrap 色彩系統 */
+    :root { --bs-border-color: #8c959f; }
+    .form-control, .form-select, .form-check-input, .modal-content { border-color: var(--bs-border-color); }
+    .form-control:focus, .form-select:focus { border-color: var(--bs-primary); }
+    /* Bootstrap 原生字級；只提高 Badge 至正文大小 */
+    .badge { font-size: 1rem; }
+    /* 手機右側操作欄固定寬度 */
+    .count-box { width: 76px; flex: 0 0 76px; }
+    .count-box .form-control { text-align: right; font-weight: 700; padding-inline: .2rem; appearance: textfield; -moz-appearance: textfield; }
+    .count-box input[type=number]::-webkit-inner-spin-button,
+    .count-box input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    .count-box .btn { width: 100%; padding-inline: .12rem; }
+    /* 手機表單採格線：左 Label 固定 32% */
+    .form-grid-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    .form-grid-table th, .form-grid-table td { border: 1px solid var(--bs-border-color); padding: .3rem .4rem; vertical-align: middle; }
+    .form-grid-table th { width: 32%; }
+    .form-grid-table .form-control, .form-grid-table .form-select { min-width: 0; }
+    /* 保留最少的佈局差異 */
+    .detail-panel li, .product-note { overflow-wrap: anywhere; }
+    .detail-panel ul { margin: 0; padding-left: 1.15rem; }
+  </style>
+  <!-- 樣式 結束 -->
+</head>
+<body class="bg-body-tertiary">
+
+<!-- 應用程式 開始 -->
+<div id="app" class="container app-wrap px-2 py-3" v-cloak>
+
+  <!-- 頁面標題／盤點身分 開始 -->
+  <header class="mb-2">
+    <div class="d-flex justify-content-between align-items-start gap-2">
+      <h1 class="h4 text-primary mb-2">{{ pageText.page_title_1 || '庫存盤點' }}</h1>
+      <p class="text-primary"><small>版號：v34</small></p>
+    </div>
+    <h6 class="mb-1">盤點人員：{{ userInfo.check_id }} {{ userInfo.check_user }}</h6>
+    <h6 class="mb-1">盤點批次：{{ checkBatch }}</h6>
+  </header>
+  <!-- 頁面標題／盤點身分 結束 -->
+
+  <!-- ADMIN 商品管理列 開始 -->
+  <section v-if="bCanEdit" class="row g-2 align-items-center mb-2">
+    <div class="col-6">
+      <button type="button" class="btn btn-success w-100" @click="fnOpenProductModal(null)"><i class="bi bi-plus-circle me-1"></i>新增盤點</button>
+    </div>
+    <div class="col-6">
+      <select class="form-select" v-model="workSearch.on" >
+        <option value="全部">顯示上下架</option>
+        <option value="已上架">顯示上架</option>
+        <option value="已下架">顯示下架</option>
+      </select>
+    </div>
+  </section>
+  <!-- ADMIN 商品管理列 結束 -->
+
+  <!-- 網頁公告 開始 -->
+  <section class="text-secondary mb-3">
+    <p class="mb-1" v-if="pageText.page_note_1">{{ pageText.page_note_1 }}</p>
+    <p class="mb-1" v-if="pageText.page_note_2">{{ pageText.page_note_2 }}</p>
+  </section>
+  <!-- 網頁公告 結束 -->
+
+  <!-- 讀取狀態 開始 -->
+  <div v-if="workUI.loading" class="alert alert-info py-2">正在讀取 Google Sheet CSV…</div>
+  <div v-if="workUI.loadError" class="alert alert-danger py-2" role="alert">{{ workUI.loadError }} <button class="btn  btn-outline-danger ms-2" @click="fnLoadAll">重試</button></div>
+  <!-- 讀取狀態 結束 -->
+  
+
+  <!-- 搜尋商品 開始 -->
+  <section class="row g-2 mb-2">
+    <div class="col-6">
+      <label class="form-label mb-1"><i class="bi bi-search"></i> 搜尋商品</label>
+      <input class="form-control" v-model.trim="workSearch.keyword" placeholder="例如：商品名稱、編號、備註..." type="search">
+    </div>
+    <div class="col-6">
+      <label class="form-label mb-1"><i class="bi bi-calendar-check"></i> 效期</label>
+      <select class="form-select" v-model="workSearch.expiry">
+        <option value="全部">全部</option>
+        <option value="已過期">已過期</option>
+        <option value="效期內">效期內</option>
+        <option value="不限期">不限期</option>
+      </select>
+    </div>
+  </section>
+  <!-- 搜尋商品 結束 -->
+
+  <!-- 庫存區域／盤點狀態 開始 -->
+  <section class="row g-2 mb-4">
+    <div class="col-6">
+      <label class="form-label mb-1"><i class="bi bi-clipboard-check-fill"></i> 盤點狀態</label>
+      <select class="form-select" v-model="workSearch.status">
+        <option value="全部">全部狀態</option>
+        <option value="未盤">未盤</option>
+        <option value="正常">正常</option>
+        <option value="異常">異常</option>
+      </select>
+    </div>
+    <div class="col-6">
+      <label class="form-label mb-1"><i class="bi bi-geo-alt-fill"></i> 庫存區域</label>
+      <select class="form-select" v-model="workSearch.area">
+        <option value="全部">全部區域</option>
+        <option v-for="a in listAreaOptions" :key="a" :value="a">{{ a }}</option>
+      </select>
+    </div>
+  </section>
+  <!-- 庫存區域／盤點狀態 結束 -->
+
+  <!-- 產品分類 Tag Button 開始 -->
+  <section class="d-flex align-items-center flex-wrap gap-1 mb-4">
+    <button v-for="c in listCategoryOptions" :key="c" type="button" class="btn"
+      :class="workSearch.category === c ? 'btn-primary' : 'btn-secondary'"
+      @click="workSearch.category = c">{{ c }}</button>
+  </section>
+  <!-- 產品分類 Tag Button 結束 -->
+
+  <!-- 盤點統計 開始 -->
+  <h6 class="mb-4">
+    <span class="me-2">
+      <i class="bi bi-clipboard-data"></i> 篩選 {{ listFilteredItems.length }} / {{ listVisibleItems.length }} 筆
+    </span>
+    <strong class="text-success me-2">正常 {{ fnStatusCount('正常') }}</strong>
+      <strong class="text-danger me-2">異常 {{ fnStatusCount('異常') }}</strong>
+      <strong class="text-primary me-2">未盤 {{ fnStatusCount('未盤') }}</strong>
+  </h6>
+  <!-- 盤點統計 結束 -->
+
+  <!-- 商品盤點列表 開始 -->
+  <main>
+    
+    <!--篩選搜尋產品清單 開始-->
+    <article v-for="item in listFilterProduct" :key="item.stock_id" class="border rounded-1 px-2 py-2 mb-4" :class="fnIsTrue(item.product_on) ? 'bg-body' : 'bg-body-secondary'">
+      <!--兩欄式 開始-->
+      <div class="d-flex align-items-start gap-2">
+        <!-- 左欄資訊 開始 -->
+        <div class="flex-grow-1" style="min-width:0">
+          <div class="mb-2">
+            <span v-if="!fnIsTrue(item.product_on)" class="badge rounded-pill bg-secondary text-white border border-dark me-1">已下架</span>
+            <strong class="h5 fw-semibold">{{ item.product_title }}</strong>
+          </div>
+          <div class="d-flex align-items-center gap-1 flex-wrap mb-2">
+            <span class="badge rounded-pill bg-primary-subtle text-primary-emphasis border border-primary">帳面 <strong>{{ (fnIsUncounted(item.stock_qty) ? '—' : item.stock_qty) }}</strong>{{ item.product_unit }}</span>
+            <span v-if="(item.stock_status || '未盤') === '正常'" class="badge rounded-pill bg-success-subtle text-success-emphasis border border-success">正常</span>
+            <span v-else-if="(item.stock_status || '未盤') === '異常'" class="badge rounded-pill bg-danger-subtle text-danger-emphasis border border-danger">異常 <strong>{{ (fnIsUncounted(item.stock_diff) ? '—' : Number(item.stock_diff) > 0 ? '+' + item.stock_diff : item.stock_diff) }}</strong></span>
+            <span v-else class="badge rounded-pill bg-primary-subtle text-primary-emphasis border border-primary">未盤</span>
+            <span v-if="fnIsExpired(item.product_expiry)" class="badge rounded-pill bg-warning-subtle text-warning-emphasis border border-warning">過期</span>
+          </div>
+          <div class="product-note text-secondary">
+            備註：{{ item.product_note || '—' }}
+            <button v-if="bCanCheck && fnIsTrue(item.product_on)" type="button" class="btn btn-outline-secondary  py-0 px-1 ms-1" @click="fnOpenFieldModal(item, 'note')" title="修改備註"><i class="bi bi-pencil"></i></button>
+          </div>
+          <div class="text-secondary">
+            效期：{{ item.product_expiry === '無' ? '不限期' : (item.product_expiry || '—') }}
+            <button v-if="bCanCheck && fnIsTrue(item.product_on)" type="button" class="btn btn-outline-secondary py-0 px-1 ms-1" @click="fnOpenFieldModal(item, 'expiry')" title="修改效期"><i class="bi bi-pencil"></i></button>
+          </div>
+        </div>
+        <!-- 左欄資訊 結束 -->
+
+        <!-- 右欄 操作 開始 -->
+        <div class="count-box d-flex flex-column gap-1">
+          <input v-if="bCanCheck && fnIsTrue(item.product_on)" class="form-control" type="number" min="0" step="1" :disabled="fnIsPending(item.stock_id)" :aria-label="item.product_title + '實盤數量'" v-model="workUI.inputQty[item.stock_id]">
+          <button v-if="bCanCheck && fnIsTrue(item.product_on)" class="btn" :class="fnIsPending(item.stock_id) ? 'btn-warning text-dark' : 'btn-dark'" type="button" @click="fnSubmitOne(item)"><i class="bi me-1" :class="fnIsPending(item.stock_id) ? 'bi-hourglass-split' : 'bi-check-lg'"></i>{{ fnIsPending(item.stock_id) ? '等待' : (fnIsUncounted(item.stock_count) ? '確認' : '更新') }}</button>
+          <button v-if="bCanEdit" class="btn btn-success" type="button" @click="fnOpenProductModal(item)"><i class="bi bi-pencil-square me-1"></i>編輯</button>
+          <button class="btn btn-primary" type="button" :aria-expanded="!!workUI.expanded[item.stock_id]" @click="fnToggleDetails(item.stock_id)"><i class="bi bi-list-ul me-1"></i>詳情</button>
+        </div>
+        <!-- 右欄 操作 結束 -->
+      </div>
+      <!--兩欄式 結束-->
+
+      <!-- Toggle詳情 開始 -->
+      <section v-if="workUI.expanded[item.stock_id]" class="detail-panel mt-2 d-flex flex-column gap-2">
+        <!-- 庫存詳情 開始 -->
+        <div class="bg-primary-subtle border border-primary-subtle rounded-1 p-2">
+          <h3 class="h6 fw-bold text-primary-emphasis mb-1">庫存詳情</h3>
+          <ul class="mb-0">
+            <li>庫存：{{ item.stock_id || '—' }}</li>
+            <li>產編：{{ item.product_id || '—' }}</li>
+            <li>批號：{{ item.product_lot || '—' }}</li>
+            <li>區域：{{ item.stock_area || '—' }}</li>
+            <li>類別：{{ item.product_kind || '—' }}</li>
+          </ul>
+        </div>
+        <!-- 庫存詳情 結束 -->
+        <!-- 上次盤點 開始 -->
+        <div class="bg-success-subtle border border-success-subtle rounded-1 p-2">
+          <h3 class="h6 fw-bold text-success-emphasis mb-1">上次盤點</h3>
+          <ul class="mb-0">
+            <li>批號：{{ item.check_batch || '—' }}</li>
+            <li>時間：{{ item.check_time || '—' }}</li>
+            <li>人員：{{ item.check_user || '—' }}</li>
+            <li>實盤：{{ (fnIsUncounted(item.stock_count) ? '—' : item.stock_count) }}{{ item.product_unit }}</li>
+          </ul>
+        </div>
+        <!-- 上次盤點 結束 -->
+      </section>
+      <!-- Toggle詳情 結束 -->
+
+    </article>
+    <!--篩選搜尋產品清單 開始-->
+
+    <div v-if="!workUI.loading && listFilterProduct.length === 0" class="alert alert-warning py-2">沒有符合條件的商品。</div>
+  </main>
+  <!-- 商品盤點列表 結束 -->
+
+  <!-- Pager 開始 -->
+  <nav class="d-flex justify-content-center align-items-center gap-2 py-2" aria-label="商品分頁">
+    <button class="btn btn-primary" type="button" :disabled="workSearch.currentPage <= 1" @click="workSearch.currentPage--"><i class="bi bi-chevron-left"></i> PREV</button>
+    <strong>{{ workSearch.currentPage }}/{{ totalPages }}</strong>
+    <button class="btn btn-primary" type="button" :disabled="workSearch.currentPage >= totalPages" @click="workSearch.currentPage++">NEXT <i class="bi bi-chevron-right"></i></button>
+  </nav>
+  <!-- Pager 結束 -->
+
+  <!-- Lightbox 商品新增／編輯  開始 -->
+  <div class="modal fade" id="productModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable"><div class="modal-content">
+      <div class="modal-header"><h2 class="modal-title fs-5">{{ productEditor.editMode ? '編輯盤點' : '新增盤點' }}</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button></div>
+      <form @submit.prevent="fnSaveProduct" class="d-flex flex-column overflow-hidden">
+        <!-- Table 新增/修改 商品表單 開始 -->
+        <div class="modal-body p-2">
+          <table class="form-grid-table"><tbody>
+            <!-- 庫存 ID：GAS 產生時間戳記 開始 -->
+            <tr><th scope="row" class="bg-body-secondary">庫存 ID</th><td><span class="fw-bold text-primary">{{ productEditor.form.stock_id }}</span><div v-if="!productEditor.editMode" class="text-secondary small">自動編號，不需填寫</div></td></tr>
+            <!-- 庫存 ID：GAS 產生時間戳記 結束 -->
+            <tr><th scope="row" class="bg-body-secondary">產品 ID</th><td><input class="form-control" v-model.trim="productEditor.form.product_id" placeholder="例如：SN001..."></td></tr>
+            <tr><th scope="row" class="bg-body-secondary">產品名稱</th><td><input class="form-control" v-model.trim="productEditor.form.product_title" placeholder="例如：洋芋片..."></td></tr>
+            <tr><th scope="row" class="bg-body-secondary">產品批號</th><td><input class="form-control" v-model.trim="productEditor.form.product_lot" placeholder="例如：LOT001..."></td></tr>
+            
+            <tr><th scope="row" class="bg-body-secondary">產品分類</th><td>
+              <select class="form-select" v-model="productEditor.form.product_kind" :disabled="productEditor.editMode">
+                <option value="">請選擇分類</option>
+                <option value="零食">零食</option>
+                <option value="電子">電子</option>
+                <option value="五金">五金</option>
+              </select>
+              <div v-if="productEditor.editMode" class="text-secondary small mt-1">建立後分類固定，不可搬移</div>
+            </td></tr>
+            <tr><th scope="row" class="bg-body-secondary">單位</th><td><input class="form-control" v-model.trim="productEditor.form.product_unit" placeholder="例如：包..."><div class="mt-1 lh-lg"><span class="badge bg-body-secondary text-secondary-emphasis rounded-1 me-1">包</span><span class="badge bg-body-secondary text-secondary-emphasis rounded-1 me-1">盒</span><span class="badge bg-body-secondary text-secondary-emphasis rounded-1 me-1">個</span><span class="badge bg-body-secondary text-secondary-emphasis rounded-1 me-1">瓶</span><span class="badge bg-body-secondary text-secondary-emphasis rounded-1 me-1">支</span><span class="badge bg-body-secondary text-secondary-emphasis rounded-1 me-1">條</span><span class="badge bg-body-secondary text-secondary-emphasis rounded-1 me-1">組</span></div></td></tr>
+            
+            <tr><th scope="row" class="bg-body-secondary">效期</th><td><div class="d-flex align-items-center gap-2 flex-wrap"><input class="form-control" style="flex:1 1 145px" type="date" v-model="productEditor.expiryDate" :disabled="productEditor.expiryNone"><label class="text-nowrap"><input type="checkbox" v-model="productEditor.expiryNone" class="form-check-input me-1">不限期</label></div></td></tr>
+            <tr><th scope="row" class="bg-body-secondary">帳面數量</th><td><input class="form-control" type="number" min="0" step="1" v-model="productEditor.form.stock_qty" placeholder=""></td></tr>
+            <tr><th scope="row" class="bg-body-secondary">庫存區域</th><td><input class="form-control" v-model.trim="productEditor.form.stock_area" placeholder="例如：A1..."><div class="mt-1 lh-lg"><span class="badge bg-body-secondary text-secondary-emphasis rounded-1 me-1">A1</span><span class="badge bg-body-secondary text-secondary-emphasis rounded-1 me-1">A2</span><span class="badge bg-body-secondary text-secondary-emphasis rounded-1 me-1">B1</span><span class="badge bg-body-secondary text-secondary-emphasis rounded-1 me-1">B2</span><span class="badge bg-body-secondary text-secondary-emphasis rounded-1 me-1">C1</span><span class="badge bg-body-secondary text-secondary-emphasis rounded-1 me-1">C2</span></div></td></tr>
+            <tr><th scope="row" class="bg-body-secondary">上架狀態</th><td>
+              <label class="form-check form-check-inline mb-0"><input class="form-check-input" type="radio" name="product_on_v34" value="TRUE" v-model="productEditor.form.product_on">上架</label>
+              <label class="form-check form-check-inline mb-0"><input class="form-check-input" type="radio" name="product_on_v33" value="FALSE" v-model="productEditor.form.product_on">下架</label>
+            </td></tr>
+            <tr><th scope="row" class="bg-body-secondary">商品備註</th><td><textarea class="form-control" rows="3" v-model="productEditor.form.product_note" placeholder="例如：熱賣品項..."></textarea></td></tr>
+          </tbody></table>
+        </div>
+        <!-- Table 新增/修改 商品表單 結束 -->
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button><button type="submit" class="btn btn-primary">儲存</button></div>
+      </form>
+    </div></div>
+  </div>
+  <!-- Lightbox 商品新增／編輯  結束 -->
+
+  <!-- Lightbox 共用欄位編輯 開始 -->
+  <div class="modal fade" id="editFieldModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+      <div class="modal-header"><h3 class="modal-title fs-5">{{ infoEditor.field === 'note' ? '修改備註' : '修改效期' }}</h3><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button></div>
+      <form @submit.prevent="fnSaveField">
+        <div class="modal-body">
+          <h4 class="fs-6 mb-2">{{ infoEditor.item?.stock_id }}　{{ infoEditor.item?.product_title }}</h4>
+          <textarea v-if="infoEditor.field === 'note'" class="form-control" v-model="infoEditor.value" rows="4" placeholder="例如：熱賣品項..."></textarea>
+          <div v-else>
+            <input class="form-control mb-2" type="date" v-model="infoEditor.value" :disabled="infoEditor.expiryNone">
+            <label class="form-check-label"><input class="form-check-input me-1" type="checkbox" v-model="infoEditor.expiryNone">不限期</label>
+          </div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button><button type="submit" class="btn btn-primary">儲存</button></div>
+      </form>
+    </div></div>
+  </div>
+  <!-- Lightbox 共用欄位編輯 結束 -->
+
+
+  <!-- 盤點等待清單 浮動按鈕 開始 -->
+  <button v-if="bCanCheck" type="button" class="btn btn-dark position-fixed d-flex align-items-center justify-content-center border-3 border-white rounded-circle"
+    style="width:60px; height:60px; right:16px; bottom:88px; z-index:1040; box-shadow:0 0 8px rgba(0,0,0,.5)"
+    @click="fnOpenPendingModal">
+    <i class="bi bi-list-check text-light" style="font-size:28px"></i>
+    <span v-if="checkQueue.list.length" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:.75rem">{{ checkQueue.list.length }}</span>
+  </button>
+  <!-- 盤點等待清單 浮動按鈕 結束 -->
+
+  <!-- 盤點等待清單 Modal 開始 -->
+  <div class="modal fade" id="pendingModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable"><div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title fs-5"><i class="bi bi-list-check me-2"></i>盤點等待清單 <span class="badge bg-danger">{{ checkQueue.list.length }}</span></h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉" :disabled="workUI.sending"></button>
+      </div>
+      <div class="modal-body p-2">
+        <table v-if="checkQueue.list.length" class="table table-bordered table-sm align-middle mb-0">
+          <thead class="table-light"><tr><th>產品詳情</th><th style="width:90px">數量</th></tr></thead>
+          <tbody>
+            <tr v-for="row in checkQueue.list" :key="row.stock_id">
+              <td class="text-break">
+                <strong>【{{ row.product_kind }}】{{ row.product_title }}</strong>
+                <div class="text-secondary small">盤點編號：{{ row.stock_id }}</div>
+              </td>
+              <td>
+                <input type="number" min="0" step="1" class="form-control mb-2 text-end px-1" v-model="row.stock_count"
+                  @input="workUI.inputQty[row.stock_id] = row.stock_count" :disabled="workUI.sending">
+                <button class="btn btn-danger w-100 btn-sm" type="button" @click="fnRemovePending(row.stock_id)" :disabled="workUI.sending"><i class="bi bi-trash me-1"></i>刪除</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <p v-else class="alert alert-warning mb-0">尚未加入盤點資料。</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" type="button" @click="fnSendPending" :disabled="!checkQueue.list.length || workUI.sending"><i class="bi bi-clipboard-check me-1"></i>送出盤點清單</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" :disabled="workUI.sending">關閉</button>
+      </div>
+    </div></div>
+  </div>
+  <!-- 盤點等待清單 Modal 結束 -->
+
+  <!-- 加入等待清單提示 Modal 開始 -->
+  <div class="modal fade" id="pendingNoticeModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+      <div class="modal-header"><h2 class="modal-title fs-5"><i class="bi bi-check-circle-fill text-success me-2"></i>系統提示</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button></div>
+      <div class="modal-body">
+        <p class="mb-2">已加入盤點等待清單：</p>
+        <strong class="text-break">{{ checkQueue.noticeText }}</strong>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-primary" data-bs-dismiss="modal">確定</button></div>
+    </div></div>
+  </div>
+  <!-- 加入等待清單提示 Modal 結束 -->
+
+  <!-- 本次送出結果 Modal 開始 -->
+  <div class="modal fade" id="resultModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title fs-5 text-success"><i class="bi bi-check-circle-fill me-2"></i>資料更新成功</h2>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>
+        </div>
+        <div class="modal-body">
+          <template v-if="gasReceipt.batch.length">
+            <p class="mb-2">本次成功更新 {{ gasReceipt.batch.length }} 筆盤點資料。</p>
+            <table class="table table-bordered table-sm mb-0">
+              <thead class="table-light"><tr><th>產品詳情</th><th style="width:80px">實盤</th></tr></thead>
+              <tbody>
+                <tr v-for="row in gasReceipt.batch" :key="row.stock_id">
+                  <td class="text-break">{{ row.product_title }}<div class="text-secondary small">{{ row.stock_id }}</div></td>
+                  <td class="text-end">{{ row.stock_count === '' ? '（未盤）' : row.stock_count }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </template>
+          <template v-else>
+          <h3 class="h6 mb-1">{{ gasReceipt.productTitle }}</h3>
+          <p class="text-secondary mb-3 small text-break">庫存 ID：{{ gasReceipt.stockId }}</p>
+          <table class="table table-bordered table-sm mb-0">
+            <thead class="table-light"><tr><th scope="col" style="width:38%">送出欄位</th><th scope="col">送出內容</th></tr></thead>
+            <tbody>
+              <tr v-for="(row, index) in gasReceipt.rows" :key="index">
+                <td>{{ row.label }}</td>
+                <td class="text-break" style="white-space: pre-wrap">{{ row.value }}</td>
+              </tr>
+            </tbody>
+          </table>
+          </template>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-primary" data-bs-dismiss="modal">關閉</button></div>
+      </div>
+    </div>
+  </div>
+  <!-- 本次送出結果 Modal 結束 -->
+
+  <!-- GAS 送出全螢幕遮罩 開始 -->
+  <div v-if="workUI.sending" class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-dark bg-opacity-50" style="z-index: 2000;">
+    <div class="bg-body rounded shadow p-4 text-center mx-3" style="width: 270px;">
+      <div class="spinner-border text-primary mb-3" role="status"><span class="visually-hidden">資料處理中</span></div>
+      <h3 class="h5 mb-2">資料處理中...</h3>
+      <p class="text-secondary mb-0">正在更新 Google Sheets<br>請勿重複送出</p>
+    </div>
+  </div>
+  <!-- GAS 送出全螢幕遮罩 結束 --></div>
+<!-- 應用程式 結束 -->
+
+
+<!-- 非 Vue 共用程式 開始 -->
+<script>
+  // 中英文欄名對照：Sheets 第 5 列中文欄名可以任意換欄序。
+  const fieldMap = {
+    '庫存_ID': 'stock_id',
+    '產品_ID': 'product_id',
+    '產品_廠商批號': 'product_lot',
+    '產品_分類': 'product_kind',
+    '產品_名稱': 'product_title',
+    '產品_單位': 'product_unit',
+    '產品_效期': 'product_expiry',
+    '產品_有效': 'product_alive',
+    '產品_上架': 'product_on',
+    '庫存_數量': 'stock_qty',
+    '庫存_實盤': 'stock_count',
+    '庫存_差異': 'stock_diff',
+    '庫存_狀態': 'stock_status',
+    '庫存_區域': 'stock_area',
+    '盤點_批號': 'check_batch',
+    '盤點_時間': 'check_time',
+    '盤點_ID': 'check_id',
+    '盤點_人員': 'check_user',
+    '產品_備註': 'product_note',
+    '盤點_類型': 'check_type',
+    '權限_編輯': 'auth_edit',
+    '權限_盤點': 'auth_check',
+    '標題_1': 'page_title_1',
+    '文案_1': 'page_note_1',
+    '文案_2': 'page_note_2',
+    '文案_3': 'page_note_3'
+  };
+
+  // 依試算表分頁 GID 
+  const gidMap = { 
+    '零食': '1857196495', 
+    '電子': '319891432', 
+    '五金': '1786157027', 
+    '盤點人員': '2091206011', 
+    '網頁文案': '295094548' 
+  };
+
+  const csvPublicId = '2PACX-1vT_9h7ZJ7i1V6xUvD1MeF7b3X6JjmysLpytTjCc5hvOP0b_CpDkCxjCki2qQ6FwnM7aA94DJdNtoDlZ';
+  
+  //佈署的應用程式
+  const GAS_URL = 'https://script.google.com/macros/s/AKfycbw20jEvqacpw15rEYn4_npMyK679qYWBi2A7z4jmEt3qzMURv0d5zmdXPZiOQ_5eKYj/exec';
+
+  // Google Sheets 中文欄名與 Vue 英文欄名只在資料邊界轉換。
+  const fieldMapReverse = Object.fromEntries(
+    Object.entries(fieldMap).map(([chinese, english]) => [english, chinese])
+  );
+
+  // CSV / GAS 欄位在中文與英文 Key 之間轉換。
+  function fnConvertKeys(data, toEnglish = true) {
+    const tmpMapping = toEnglish ? fieldMap : fieldMapReverse;
+    const tmpResult = {};
+
+    for (const [tmpKey, tmpValue] of Object.entries(data)) {
+      const tmpNewKey = tmpMapping[tmpKey];
+      if (!tmpNewKey) {
+        if (toEnglish) continue; // CSV 或 GAS 新增其他欄位，不影響既有畫面。
+        throw new Error(`無法寫入未知欄位：${tmpKey}`);
+      }
+      tmpResult[tmpNewKey] = tmpValue;
+    }
+    return tmpResult;
+  }
+
+  // 使用第 5 列中文表頭，第 7 列開始是資料；Google Sheets 可調整欄序。
+  async function fnFetchSheet(gid) {
+    const tmpUrl = `https://docs.google.com/spreadsheets/d/e/${csvPublicId}/pub?gid=${gid}&single=true&output=csv&_t=${Date.now()}`;
+    const tmpResponse = await fetch(tmpUrl, { cache: 'no-store', signal: AbortSignal.timeout(30000) });
+    if (!tmpResponse.ok) throw new Error(`CSV gid=${gid} 讀取失敗：HTTP ${tmpResponse.status}`);
+
+    const tmpParsed = Papa.parse(await tmpResponse.text(), { skipEmptyLines: false });
+    if (tmpParsed.errors.length) throw new Error(`CSV gid=${gid} 格式錯誤：${tmpParsed.errors[0].message}`);
+
+    const tmpRows = tmpParsed.data;
+    if (tmpRows.length < 6) throw new Error(`CSV gid=${gid} 缺少第 5 列中文欄名`);
+    const tmpHeaders = tmpRows[4].map(value => String(value ?? '').trim());
+
+    const tmpRequired = gid === gidMap['盤點人員'] ? ['盤點_ID', '權限_編輯', '權限_盤點']
+      : gid === gidMap['網頁文案'] ? ['標題_1'] : ['庫存_ID', '產品_分類'];
+    for (const tmpName of tmpRequired) {
+      if (!tmpHeaders.includes(tmpName)) throw new Error(`CSV gid=${gid} 缺少欄位：${tmpName}`);
+    }
+
+    const tmpData = [];
+    for (let tmpI = 6; tmpI < tmpRows.length; tmpI++) {
+      const tmpRow = tmpRows[tmpI];
+      if (!tmpRow.some(value => String(value ?? '').trim())) continue;
+
+      const tmpItem = {};
+      for (let tmpCol = 0; tmpCol < tmpHeaders.length; tmpCol++) {
+        const tmpEnglishKey = fieldMap[tmpHeaders[tmpCol]];
+        if (tmpEnglishKey) tmpItem[tmpEnglishKey] = String(tmpRow[tmpCol] ?? '').trim();
+      }
+      tmpData.push(tmpItem);
+    }
+    return tmpData;
+  }
+
+  // GAS 只處理傳送及回傳；Loading 與畫面狀態交給 Vue。
+  async function fnPostGAS(payload) {
+    const tmpResponse = await fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(120000)
+    });
+    if (!tmpResponse.ok) throw new Error(`GAS HTTP ${tmpResponse.status}`);
+    return tmpResponse.json();
+  }
+
+  // 判斷 Google Sheets 的 TRUE/FALSE。
+  function fnIsTrue(value) {
+    return String(value ?? '').toUpperCase() === 'TRUE';
+  }
+
+  // 空白實盤是未盤，數值 0 是有效數量。
+  function fnIsUncounted(value) {
+    return value === '' || value === null || value === undefined;
+  }
+
+  // 取得本地日期 YYYY-MM-DD。
+  function fnLocalDate(date = new Date()) {
+    return [
+      date.getFullYear(),
+      String(date.getMonth() + 1).padStart(2, '0'),
+      String(date.getDate()).padStart(2, '0')
+    ].join('-');
+  }
+
+  // 檢查效期是否為有效日期。
+  function fnHasValidExpiry(value) {
+    const tmpDateText = String(value ?? '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(tmpDateText)) return false;
+    const tmpDate = new Date(`${tmpDateText}T00:00:00`);
+    return !Number.isNaN(tmpDate.getTime()) && fnLocalDate(tmpDate) === tmpDateText;
+  }
+
+  // 判斷商品是否已過期。
+  function fnIsExpired(value) {
+    return fnHasValidExpiry(value) && value < fnLocalDate();
+  }
+</script>
+<!-- 非 Vue 共用程式 結束 -->
+
+<!-- Vue 3 主程式 開始 -->
+<script type="module">
+  import { createApp, ref, reactive, computed, watch, onMounted } from 'https://unpkg.com/vue@3/dist/vue.esm-browser.js';
+
+  createApp({
+
+    
+    setup() {
+      
+
+
+      // Vue 變數集中宣告 ===============
+      const listItems = ref([]);     // 已載入的三類商品
+      const listUsers = ref([]);     // 盤點人員與權限
+      const pageText = ref({});      // 網頁標題、公告
+      
+      
+      const pageSize = 10;          // 每頁筆數
+
+      // 頁面控制：讀取、送出、錯誤、單筆輸入、展開詳情。
+      const workUI = reactive({
+        loading: true,     // CSV 讀取中
+        sending: false,    // GAS 寫入中
+        loadError: '',     // CSV 讀取錯誤訊息
+        inputQty: {},      // 每筆商品暫存實盤數量（stock_id 為索引）
+        expanded: {}       // 商品詳情是否展開（stock_id 為索引）
+      });
+
+      // 商品搜尋：所有篩選條件與目前頁數。
+      const workSearch = reactive({
+        area: '全部',       // 庫存區域
+        status: '全部',     // 盤點狀態
+        category: '全部',   // 產品分類
+        on: '全部',         // 上下架條件（管理員）
+        expiry: '全部',     // 效期狀態
+        keyword: '',       // 搜尋關鍵字
+        currentPage: 1     // 篩選結果目前頁數
+      });
+
+      // 盤點等待清單：先暫存，按整批送出才寫入 GAS。
+      const checkQueue = reactive({
+        list: [],          // 等待送出的盤點商品及實盤數量
+        noticeText: ''     // 加入等待清單後的系統提示
+      });
+
+      // GAS 回執：只顯示本次送出項目。
+      const gasReceipt = reactive({
+        stockId: '',       // 單筆更新的庫存 ID
+        productTitle: '',  // 單筆更新的商品名稱
+        rows: [],          // 單筆送出的欄位與數值
+        batch: []          // 整批盤點成功的商品與數量
+      });
+
+      // 新增、編輯商品 Modal。
+      const productEditor = reactive({
+        form: {},          // 商品表單資料
+        editMode: false,   // true: 編輯；false: 新增
+        expiryNone: true,  // 是否不限期
+        expiryDate: '',    // 效期日期欄位
+        editingId: ''      // 原本庫存 ID（編輯時使用）
+      });
+
+      // 備註、效期共用編輯 Modal。
+      const infoEditor = reactive({
+        item: null,        // 正在編輯的商品
+        field: 'note',     // note: 備註；expiry: 效期
+        value: '',         // 輸入中的文字或日期
+        expiryNone: false  // 效期是否不限期
+      });
+
+      // computed 衍生資料 ===============
+
+      // 依網址 ?u= 取得盤點人員與權限
+      const userInfo = computed(() => {
+        const tmpId = new URLSearchParams(location.search).get('u')?.trim().toUpperCase();
+        const tmpUser = listUsers.value.find(item => item.check_id.toUpperCase() === tmpId);
+
+        // 查無人員或訪客
+        if (!tmpUser || tmpId === 'GUEST') {
+          return{check_id:'GUEST', check_user:'訪客', auth_edit:'FALSE', auth_check:'FALSE'}
+        }
+
+        return tmpUser;
+      });
+
+      // user 是否有權限  商品新增 商品編輯
+      const bCanEdit = computed(() => fnIsTrue(userInfo.value.auth_edit));
+
+      // user 是否有權限  備註 效期更新 
+      const bCanCheck = computed(() => fnIsTrue(userInfo.value.auth_check));
+
+      // 今日盤點批號。
+      const checkBatch = computed(() => `${fnLocalDate().replaceAll('-', '')}-${userInfo.value.check_id}`);
+
+      // 依權限決定可看到哪些商品（非管理員不看下架商品）。
+      const listVisibleItems = computed(() => bCanEdit.value ? listItems.value : listItems.value.filter(item => fnIsTrue(item.product_on)));
+      
+      // 庫存區域選項。
+      const listAreaOptions = computed(() => [...new Set(listVisibleItems.value.map(item => item.stock_area).filter(Boolean))].sort());
+      
+      // 商品分類選項。
+      const listCategoryOptions = computed(() => ['全部', ...new Set(listVisibleItems.value.map(item => item.product_kind).filter(Boolean))]);
+      
+      // 搜尋、效期、上下架及盤點狀態的綜合篩選結果。
+      const listFilteredItems = computed(() => {
+        const tmpKeyword = workSearch.keyword.toLowerCase();
+        return listVisibleItems.value.filter(item => {
+          if (workSearch.area !== '全部' && item.stock_area !== workSearch.area) return false;
+          if (workSearch.status !== '全部' && (item.stock_status || '未盤') !== workSearch.status) return false;
+          if (workSearch.category !== '全部' && item.product_kind !== workSearch.category) return false;
+
+          if (workSearch.expiry === '已過期' && !fnIsExpired(item.product_expiry)) return false;
+          if (workSearch.expiry === '效期內' && (!fnHasValidExpiry(item.product_expiry) || fnIsExpired(item.product_expiry))) return false;
+          if (workSearch.expiry === '不限期' && item.product_expiry !== '無') return false;
+
+          if (bCanEdit.value && workSearch.on !== '全部') {
+            const tmpBOn = fnIsTrue(item.product_on);
+            if (workSearch.on === '已上架' && !tmpBOn) return false;
+            if (workSearch.on === '已下架' && tmpBOn) return false;
+          }
+
+          if (!tmpKeyword) return true;
+          return [item.stock_id, item.product_id, item.product_title, item.product_note, item.product_lot]
+            .some(value => String(value ?? '').toLowerCase().includes(tmpKeyword));
+        });
+      });
+
+
+      // 篩選後的總頁數。
+      const totalPages = computed(() => Math.max(1, Math.ceil(listFilteredItems.value.length / pageSize)));
+      
+      // 本頁要顯示的 10 筆商品。
+      const listFilterProduct = computed(() => listFilteredItems.value.slice((workSearch.currentPage - 1) * pageSize, workSearch.currentPage * pageSize));
+
+      // watch =====
+      watch(
+        () => [workSearch.area, workSearch.status, workSearch.category,
+          workSearch.on, workSearch.expiry, workSearch.keyword],
+        () => { workSearch.currentPage = 1; }
+      );
+      // 商品筆數改變時避免目前頁數超出上限。
+      watch(totalPages, count => { if (workSearch.currentPage > count) workSearch.currentPage = count; });
+      
+      
+      // ===== fn：畫面互動與資料送出 =====
+      // 統計各盤點狀態的商品數量。
+      const fnStatusCount = (status) => {
+        return listVisibleItems.value.filter(item => (item.stock_status || '未盤') === status).length;
+      };
+      // 判斷商品是否已加入盤點等待清單。
+      const fnIsPending = (stockId) => {
+        return checkQueue.list.some(row => row.stock_id === stockId);
+      };
+      // 切換商品詳情展開狀態。
+      const fnToggleDetails = (stockId) => { workUI.expanded[stockId] = !workUI.expanded[stockId]; };
+
+      // 平行讀取三張商品 CSV、盤點人員及網頁文案。
+      const fnLoadAll = async () => {
+        workUI.loading = true;
+        workUI.loadError = '';
+        try {
+          const [tmpFoodRows, tmpElectronicsRows, tmpHardwareRows, tmpUserRows, tmpPageRows] = await Promise.all([
+            fnFetchSheet(gidMap['零食']),
+            fnFetchSheet(gidMap['電子']),
+            fnFetchSheet(gidMap['五金']),
+            fnFetchSheet(gidMap['盤點人員']),
+            fnFetchSheet(gidMap['網頁文案'])
+          ]);
+          listItems.value = [...tmpFoodRows, ...tmpElectronicsRows, ...tmpHardwareRows]
+            .filter(row => String(row.stock_id ?? '').trim() !== '');
+          listUsers.value = tmpUserRows;
+          pageText.value = tmpPageRows[0] || {};
+          workUI.inputQty = Object.fromEntries(listItems.value.map(item => {
+            const tmpWaiting = checkQueue.list.find(row => row.stock_id === item.stock_id);
+            return [item.stock_id, tmpWaiting ? tmpWaiting.stock_count : (fnIsUncounted(item.stock_count) ? '' : String(item.stock_count))];
+          }));
+          workUI.expanded = {};
+          workSearch.currentPage = 1;
+        } catch (tmpError) {
+          workUI.loadError = `讀取失敗：${tmpError.message}`;
+          console.error(tmpError);
+        } finally { workUI.loading = false; }
+      };
+
+      // 關閉來源 Modal 後顯示本次寫入成功明細。
+      const fnShowResultModal = (sourceModalId = '') => {
+        const tmpResultModal = document.getElementById('resultModal');
+        const tmpSource = sourceModalId && document.getElementById(sourceModalId);
+        if (tmpSource && tmpSource.classList.contains('show')) {
+          tmpSource.addEventListener('hidden.bs.modal', () => {
+            bootstrap.Modal.getOrCreateInstance(tmpResultModal).show();
+          }, { once: true });
+          bootstrap.Modal.getOrCreateInstance(tmpSource).hide();
+        } else {
+          bootstrap.Modal.getOrCreateInstance(tmpResultModal).show();
+        }
+      };
+
+      // 統一送出：只在 GAS 確認成功後更新畫面及顯示本次送出的欄位。
+      // 新增商品、修改商品或備註效期的共用寫入流程。
+      const fnCommit = async (payload, sourceModalId = '') => {
+        if (workUI.sending) return;
+        workUI.sending = true;
+
+        try {
+          const tmpRequest = {
+            ...payload,
+            check_id: userInfo.value.check_id,
+            data: fnConvertKeys(payload.data, false)
+          };
+          const tmpResult = await fnPostGAS(tmpRequest);
+
+          if (tmpResult.status !== 'success') {
+            alert(`寫入失敗：${tmpResult.message || 'GAS 未提供原因'}`);
+            return;
+          }
+          if (!tmpResult.product) throw new Error('GAS 沒有回傳商品資料');
+
+          const tmpProduct = fnConvertKeys(tmpResult.product);
+          if (!tmpProduct.stock_id) throw new Error('GAS 回傳缺少庫存 ID');
+          const tmpOriginal = listItems.value.find(item => item.stock_id === tmpProduct.stock_id);
+          if (tmpOriginal) Object.assign(tmpOriginal, tmpProduct);
+          else listItems.value.unshift(tmpProduct);
+          workUI.inputQty[tmpProduct.stock_id] = fnIsUncounted(tmpProduct.stock_count) ? '' : String(tmpProduct.stock_count);
+
+          if (payload.action === 'create') {
+            Object.assign(workSearch, { area: '全部', status: '全部', category: '全部', on: '全部', expiry: '全部', keyword: '' });
+            workSearch.currentPage = 1;
+          }
+
+          gasReceipt.batch = [];
+          gasReceipt.stockId = tmpProduct.stock_id;
+          gasReceipt.productTitle = tmpProduct.product_title;
+          gasReceipt.rows = Object.entries(payload.data).map(([key, value]) => ({
+            label: fieldMapReverse[key],
+            value: value === '' ? '（空白）' : value === '無' ? '不限期' : String(value)
+          }));
+          fnShowResultModal(sourceModalId);
+        } catch (tmpError) {
+          console.error('送出或畫面更新失敗', tmpError);
+          alert(`無法確認寫入結果：${tmpError.message}。請先檢查 Google Sheets，不要直接重送。`);
+        } finally {
+          workUI.sending = false;
+        }
+      };
+
+      // 開啟盤點等待清單。
+      const fnOpenPendingModal = () => {
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('pendingModal')).show();
+      };
+
+      // 驗證單筆實盤並加入等待清單，不立即寫入。
+      const fnSubmitOne = (item) => {
+        if (!bCanCheck.value || !fnIsTrue(item.product_on) || workUI.sending) return;
+        if (fnIsPending(item.stock_id)) return fnOpenPendingModal();
+
+        const tmpRaw = String(workUI.inputQty[item.stock_id] ?? '').trim();
+        const tmpQty = tmpRaw === '' ? null : Number(tmpRaw);
+        if (tmpQty !== null && (!Number.isSafeInteger(tmpQty) || tmpQty < 0)) return alert('請輸入空值，或 0 以上整數');
+        if (tmpQty !== null && (!Number.isSafeInteger(Number(item.stock_qty)) || Number(item.stock_qty) < 0))
+          return alert('帳面數量無效，無法計算差異');
+
+        checkQueue.list.push({
+          stock_id: item.stock_id,
+          product_title: item.product_title,
+          product_kind: item.product_kind,
+          product_unit: item.product_unit,
+          stock_count: tmpQty === null ? '' : String(tmpQty)
+        });
+        checkQueue.noticeText = `${item.product_title} × ${tmpRaw === '' ? '未盤' : tmpRaw + item.product_unit}`;
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('pendingNoticeModal')).show();
+      };
+
+      // 從等待清單刪除指定商品。
+      const fnRemovePending = (stockId) => {
+        checkQueue.list = checkQueue.list.filter(row => row.stock_id !== stockId);
+      };
+
+      // 整批送出等待清單並處理 GAS 回執。
+      const fnSendPending = async () => {
+        if (!checkQueue.list.length || workUI.sending) return;
+        for (const tmpRow of checkQueue.list) {
+          const tmpText = String(tmpRow.stock_count ?? '').trim();
+          if (tmpText && (!Number.isSafeInteger(Number(tmpText)) || Number(tmpText) < 0)) {
+            return alert(`${tmpRow.product_title}：請輸入空值或 0 以上整數`);
+          }
+        }
+
+        workUI.sending = true;
+        try {
+          const tmpRequest = {
+            action: 'batch_count',
+            check_id: userInfo.value.check_id,
+            items: checkQueue.list.map(row => ({
+              stock_id: row.stock_id,
+              data: fnConvertKeys({ stock_count: String(row.stock_count ?? '').trim() }, false)
+            }))
+          };
+          const tmpResult = await fnPostGAS(tmpRequest);
+          if (tmpResult.status !== 'success' || !Array.isArray(tmpResult.results)) {
+            throw new Error(tmpResult.message || 'GAS 未回傳整批寫入結果');
+          }
+          if (tmpResult.results.length !== tmpRequest.items.length) throw new Error('GAS 回傳筆數不符');
+
+          // GAS 整批成功才清空等待清單。
+          gasReceipt.batch = [];
+          for (const tmpSaved of tmpResult.results) {
+            const tmpProduct = fnConvertKeys(tmpSaved.product);
+            const tmpOriginal = listItems.value.find(item => item.stock_id === tmpProduct.stock_id);
+            if (tmpOriginal) Object.assign(tmpOriginal, tmpProduct);
+            workUI.inputQty[tmpProduct.stock_id] = fnIsUncounted(tmpProduct.stock_count) ? '' : String(tmpProduct.stock_count);
+            const tmpPending = checkQueue.list.find(row => row.stock_id === tmpProduct.stock_id);
+            gasReceipt.batch.push({ stock_id: tmpProduct.stock_id, product_title: tmpProduct.product_title,
+              stock_count: tmpPending ? tmpPending.stock_count : tmpProduct.stock_count });
+          }
+          checkQueue.list = [];
+          fnShowResultModal('pendingModal');
+        } catch (tmpError) {
+          console.error('整批盤點送出失敗', tmpError);
+          alert(`無法確認寫入結果：${tmpError.message}。等待清單已保留，請先確認 Google Sheets 再重送。`);
+        } finally {
+          workUI.sending = false;
+        }
+      };
+
+      // 開啟商品新增或編輯表單。
+      const fnOpenProductModal = (item) => {
+        if (!bCanEdit.value) return;
+        productEditor.editMode = Boolean(item);
+        productEditor.editingId = item?.stock_id || '';
+        productEditor.form = item ? { ...item } : {
+          stock_id: '儲存後產生', product_id: '', product_lot: '', product_kind: '',
+          product_title: '', product_unit: '', product_expiry: '無', product_on: 'FALSE',
+          stock_qty: '', stock_area: '', product_note: ''
+        };
+        productEditor.expiryNone = !fnHasValidExpiry(productEditor.form.product_expiry);
+        productEditor.expiryDate = productEditor.expiryNone ? '' : productEditor.form.product_expiry;
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('productModal')).show();
+      };
+
+
+      
+	  // 使用者儲存 檢查商品資料正確 再呼叫寫入gSheet
+      const fnSaveProduct = async () => {
+        if (!bCanEdit.value || workUI.sending) return;
+        const tmpRawQty = String(productEditor.form.stock_qty ?? '').trim();
+        const tmpQty = tmpRawQty === '' ? null : Number(tmpRawQty);
+        if (tmpQty !== null && (!Number.isSafeInteger(tmpQty) || tmpQty < 0)) return alert('帳面數量必須留空或填入 0 以上整數');
+        if (!productEditor.expiryNone && !fnHasValidExpiry(productEditor.expiryDate)) return alert('請選擇有效日期，或勾選不限期');
+		
+        if (!productEditor.editMode && !['零食', '電子', '五金'].includes(productEditor.form.product_kind)) return alert('請選擇商品分類');
+        const tmpData = {
+          product_id: productEditor.form.product_id, product_title: productEditor.form.product_title,
+          product_lot: productEditor.form.product_lot,
+          product_unit: productEditor.form.product_unit, product_expiry: productEditor.expiryNone ? '無' : productEditor.expiryDate,
+          product_on: productEditor.form.product_on, stock_qty: tmpQty === null ? '' : String(tmpQty),
+          stock_area: productEditor.form.stock_area, product_note: productEditor.form.product_note
+        };
+        if (!productEditor.editMode) tmpData.product_kind = productEditor.form.product_kind;
+        await fnCommit({ action: productEditor.editMode ? 'update' : 'create', mode: 'product', stock_id: productEditor.editingId, data: tmpData }, 'productModal');
+      };
+
+      
+	  //使用者修改 備註或效期 開啟編輯視窗
+      const fnOpenFieldModal = (item, field) => {
+        if (!bCanCheck.value || !fnIsTrue(item.product_on)) return;
+        if (field !== 'note' && field !== 'expiry') return;
+        infoEditor.item = item;
+        infoEditor.field = field;
+        const tmpRaw = item[field === 'note' ? 'product_note' : 'product_expiry'] || '';
+        infoEditor.expiryNone = field === 'expiry' && !fnHasValidExpiry(tmpRaw);
+        infoEditor.value = infoEditor.expiryNone ? '' : tmpRaw;
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('editFieldModal')).show();
+      };
+      
+	 
+	  // 使用者修改 備註或效期 再呼叫寫入gSheet
+      const fnSaveField = async () => {
+        const tmpItem = infoEditor.item;
+        if (!bCanCheck.value || !tmpItem || !fnIsTrue(tmpItem.product_on) || workUI.sending) return;
+        const tmpField = infoEditor.field === 'note' ? 'product_note' : 'product_expiry';
+        const tmpValue = tmpField === 'product_expiry' ? (infoEditor.expiryNone ? '無' : infoEditor.value) : infoEditor.value;
+        if (tmpField === 'product_expiry' && !infoEditor.expiryNone && !fnHasValidExpiry(tmpValue))
+          return alert('請選擇有效日期，或勾選不限期');
+        await fnCommit({ action: 'update', mode: 'field', stock_id: tmpItem.stock_id, data: { [tmpField]: tmpValue } }, 'editFieldModal');
+      };
+
+      // 初始化讀取商品、人員、文案。
+      onMounted(fnLoadAll);
+
+      
+      return {
+        pageText, userInfo, bCanEdit, bCanCheck, checkBatch,
+        workUI, workSearch, checkQueue, gasReceipt, productEditor, infoEditor,
+        listVisibleItems, listAreaOptions, listCategoryOptions, listFilteredItems,
+        listFilterProduct, totalPages,
+        fnLoadAll, fnToggleDetails, fnStatusCount, fnIsPending,
+        fnIsTrue, fnIsUncounted, fnIsExpired,
+        fnSubmitOne, fnOpenPendingModal, fnRemovePending, fnSendPending,
+        fnOpenProductModal, fnSaveProduct, fnOpenFieldModal, fnSaveField
+      };
+    }
+  }).mount('#app');
+</script>
+<!-- Vue 3 主程式 結束 -->
+</body>
+</html>

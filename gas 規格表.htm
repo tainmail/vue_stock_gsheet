@@ -78,3 +78,56 @@ stock_v27.htm
 
 ■
 更新資料庫 請參考 "參考gas.htm" 的寫法。
+
+====================
+v30 
+
+1.
+?user=admin  改成用 ?u=admin
+
+2.
+分頁每頁 10筆
+
+3.
+在 按鈕"更新" 後，送出到cb的空窗期太長。
+想換一個方式
+按鈕"更新" 按下後加入一個 "等待清單"
+
+比照 "參考cart.htm" 先 modal 一個系提統提示
+已加入盤點等待清單：
+[法比娜]去屑舒緩洗髮精 500ml × 8
+按鈕"更新"變成黃色，字變成 "等待"
+
+比照 "參考cart.htm" 有一個浮動按鈕，上面有"等待的數量"。 
+<button class="btn btn-dark position-fixed d-flex align-items-center justify-content-center border-3 border-white rounded-circle" style="width: 60px; height: 60px; right: 16px; bottom: 88px; z-index: 1050; box-shadow: rgba(0, 0, 0, 0.5) 0px 0px 8px 0px;"><i class="bi bi-cart text-light" style="font-size: 28px;"></i><span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.7rem;">1</span></button>
+
+
+"等待的數量"點進去
+modal "盤點等待清單" "數量"
+table 
+tr 產品詳情 數量
+tr td 
+【髮品洗淨】法比娜[法比娜]去屑舒緩洗髮精
+盤點編號：
+tr td
+數量input 按鈕"刪除"
+
+按鈕"送出盤點清單" "關閉"
+
+這時再整批寫入，寫入"盤點歷史"的羅輯不變
+
+4.
+■ tab名稱："商品主表"
+gid=1882716339
+
+要拆表
+零食 gid=1857196495
+電子 gid=319891432
+五金 gid=1786157027
+
+比照 "參考cart.htm" 的 "產品列表搜尋" 這區用 gid 的加載方式。
+不過因為有 "盤點等待清單" ，所以產品應該是要從n個表全載，再按照原來的篩選方式。
+(這個需要，你要加強評估)
+
+
+
