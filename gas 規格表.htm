@@ -129,5 +129,29 @@ gid=1882716339
 不過因為有 "盤點等待清單" ，所以產品應該是要從n個表全載，再按照原來的篩選方式。
 (這個需要，你要加強評估)
 
+==================
+Modal 區塊的 HTML 寫碼習慣
+1. 語意化標籤：優先使用 <section>、<article>、<header>、<footer>，避免全部使用 <div>。
+2. 保留 Bootstrap 結構：沿用 modal、modal-dialog、modal-content、modal-header、modal-body、modal-footer 等標準 Class。
+3. 區塊註解明確：主要功能區塊使用 <!-- XXX 開始 -->、<!-- XXX 結束 --> 成對標示。
+4. HTML 層級清楚：依照 Modal → Dialog → Content → Header / Body / Footer 的順序縮排。
+5. Vue 條件顯示：優先使用 <template v-if>、<template v-else>，不增加多餘的 HTML 容器。
+6. 表格結構簡化：<table> 內直接使用 <tr>、<th>、<td>，省略手寫的 <thead>、<tbody>。
+7. 簡短標籤同行：內容簡單的標籤寫在同一行，例如：
+   <tr class="table-light"> <th>產品詳情</th> <th>實盤</th> </tr>
+8. 複雜內容分行：有多個元素或 Vue 綁定的區塊，適度換行，保持閱讀清楚。
+9. Bootstrap 優先：樣式優先使用現成 Class，例如 text-break、table-sm、mb-0，避免額外建立 CSS。
+10. 少量 Inline Style：只有明確尺寸或特殊需求才使用，例如 width:80px、white-space:pre-wrap。
+11. Vue 資料直接綁定：使用 {{ }} 顯示資料，簡單判斷直接使用三元運算式。
+12. Vue 清單使用 v-for：迴圈直接寫在 <tr>，並提供 :key。
+13. 畫面與邏輯分離：Modal HTML 只負責展示 GAS 回傳結果，資料整理與送出由 JavaScript 處理。
+14. 功能區塊集中管理：整批盤點與單筆更新共用一個 Modal，以 v-if / v-else 切換。
+15. 簡潔優先：不增加無用途的包裝標籤、Class 或重複結構。
+整體風格：語意化 HTML、Bootstrap 原生結構、Vue 直接綁定、適度換行、減少不必要的標籤。
+
+==============================
+
+
+"包","瓶","個","片","支","對","台","件","雙","桶","箱","盒","捲","打","排","卡","本","袋","張","條","只","小包","小瓶"
 
 

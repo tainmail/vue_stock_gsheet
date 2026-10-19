@@ -40,23 +40,21 @@
     .detail-panel li, .product-note { overflow-wrap: anywhere; }
     .detail-panel ul { margin: 0; padding-left: 1.15rem; }
   </style>
-  <!-- 樣式 結束 -->
+
 </head>
 <body class="bg-body-tertiary">
 
 <!-- 應用程式 開始 -->
 <div id="app" class="container app-wrap px-2 py-3" v-cloak>
 
-  <!-- 頁面標題／盤點身分 開始 -->
+  <!-- header 開始 -->
   <header class="mb-2">
-    <div class="d-flex justify-content-between align-items-start gap-2">
-      <h1 class="h4 text-primary mb-2">{{ pageText.page_title_1 || '庫存盤點' }}</h1>
-      <p class="text-primary"><small>版號：v30</small></p>
-    </div>
+    <h1 class="h4 text-primary mb-1">{{pageText.page_title_1 || '庫存盤點'}}</h1>
+    <p class="text-primary mb-1"> <small>版號：v30</small> </p>
     <h6 class="mb-1">盤點人員：{{ userInfo.check_id }} {{ userInfo.check_user }}</h6>
     <h6 class="mb-1">盤點批次：{{ checkBatch }}</h6>
   </header>
-  <!-- 頁面標題／盤點身分 結束 -->
+  <!-- header 結束 -->
 
   <!-- ADMIN 商品管理列 開始 -->
   <section v-if="bCanEdit" class="row g-2 align-items-center mb-2">
@@ -444,25 +442,62 @@
 
   createApp({
     setup() {
-      const listItems = ref([]);
-      const listUsers = ref([]);
-      const pageText = ref({});
-      const bLoading = ref(true);
-      const bSending = ref(false);
+      //===========共用===========
+      const pageText = ref({}); //網頁文字標題與公告
+      const bLoading = ref(true); //讀取CSV中
+      const bSending = ref(false); //送出GAS資料中
       const loadError = ref('');
-      const urlUser = new URLSearchParams(location.search).get('user')?.trim() || 'GUEST';
-      const userInfo = computed(() => listUsers.value.find(u => u.check_id.toUpperCase() === urlUser.toUpperCase())
-        || listUsers.value.find(u => u.check_id === 'GUEST')
-        || { check_id: 'GUEST', check_user: '訪客', auth_edit: 'FALSE', auth_check: 'FALSE' });
+      
+      //===========權限相關===========
+      //盤點人員權限
+      const listUsers = ref([]); 
+      const userInfo = computed(() => {
+        const tmpId = new URLSearchParams(location.search).get('u')?.trim().toUpperCase();
+        const tmpUser = listUsers.value.find(item => item.check_id.toUpperCase() === tmpId);
+
+        // 查無人員或訪客，使用預設身分
+        if (!tmpUser || tmpId === 'GUEST') {
+          return {
+            check_id: 'GUEST',
+            check_user: '訪客',
+            auth_edit: 'FALSE',
+            auth_check: 'FALSE'
+          };
+        }
+
+        return tmpUser;
+      });
+
+      //權限 商品編輯
       const bCanEdit = computed(() => fnIsTrue(userInfo.value.auth_edit));
+      //權限 商品盤點
       const bCanCheck = computed(() => fnIsTrue(userInfo.value.auth_check));
+      //權限 產生盤點批號  日期+人員
       const checkBatch = computed(() => `${fnLocalDate().replaceAll('-', '')}-${userInfo.value.check_id}`);
 
-      const stateFilter = reactive({ area: '全部', status: '全部', category: '全部', on: '全部', expiry: '全部', keyword: '' });
+      //===========商品相關===========
+      //商品資料清單
+      const listItems = ref([]);
+
+      //商品篩選
+      const stateFilter = reactive({ 
+        area: '全部', 
+        status: '全部', 
+        category: '全部', 
+        on: '全部', 
+        expiry: '全部', 
+        keyword: '' 
+      });
+
+      //頁碼 目前
       const currentPage = ref(1);
+      //頁碼 每頁n筆
       const pageSize = 5;
+
+
       const stateInputQty = ref({});
       const stateExpanded = ref({});
+      
       function fnToggleDetails(stockId) { stateExpanded.value[stockId] = !stateExpanded.value[stockId]; }
 
       async function fnLoadAll() {
@@ -487,6 +522,8 @@
           console.error(error);
         } finally { bLoading.value = false; }
       }
+
+      // Mounted
       onMounted(fnLoadAll);
 
       const listVisibleItems = computed(() => bCanEdit.value ? listItems.value : listItems.value.filter(item => fnIsTrue(item.product_on)));
