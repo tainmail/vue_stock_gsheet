@@ -72,7 +72,7 @@
     <!-- header 開始 -->
     <header class="mb-2">
       <h1 class="h4 text-primary mb-1">{{pageText.page_title_1 || '庫存盤點'}}</h1>
-      <p class="text-primary mb-1"> <small>版號：v45</small> </p>
+      <p class="text-primary mb-1"> <small>版號：v49</small> </p>
       <h6 class="mb-1">盤點人員：{{ userCurrent.check_id }} {{ userCurrent.check_user }}</h6>
       <h6 class="mb-1">盤點批次：{{ checkBatchId }}</h6>
     </header>
@@ -222,7 +222,7 @@
             <p class="product-note text-secondary mb-0"> 備註：{{item.product_note || '—'}}</p>
             <p class="text-secondary mb-0"> 效期：{{item.product_expiry === '無' ? '不限期':(item.product_expiry || '—')}}</p>
             <button class="btn btn-outline-secondary py-0 px-1" type="button" title="修改備註效期"
-              v-if="bCanCheck && fnIsTrue(item.product_on)" @click="fnOpenFieldModal(item, 'expiry')" >
+              v-if="bCanCheck && fnIsTrue(item.product_on)" @click="fnOpenFieldModal(item)" >
               <i class="bi bi-pencil"></i>
             </button>
             <!-- 備註 效期 結束-->
@@ -486,35 +486,33 @@
     <!-- Modal 新增／編輯商品 結束 -->
 
 
-    <!-- Modal 共用欄位編輯 開始 -->
+    <!-- Modal 備註與效期合併編輯 開始 -->
     <section class="modal fade" id="editFieldModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered">
         <article class="modal-content">
 
           <header class="modal-header">
-            <h3 class="modal-title fs-5">{{ productsFieldEditor.field === 'note' ? '修改備註' : '修改效期' }}</h3>
+            <h3 class="modal-title fs-5">修改備註與效期</h3>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>
           </header>
 
           <form @submit.prevent="fnSaveField">
-            <!-- Modal body 開始 -->
             <section class="modal-body">
-              <h4 class="fs-6 mb-2">{{ productsFieldEditor.item?.stock_id }}　{{ productsFieldEditor.item?.product_title }}</h4>
+              <h4 class="fs-6 mb-3">{{ productsFieldEditor.item?.stock_id }}　{{ productsFieldEditor.item?.product_title }}</h4>
 
-              <!-- 修改 備註 效期  開始-->
-              <textarea v-if="productsFieldEditor.field === 'note'" class="form-control" v-model="productsFieldEditor.value" rows="4"
+              <label class="form-label mb-1" for="fieldNote">商品備註</label>
+              <textarea id="fieldNote" class="form-control mb-3" v-model="productsFieldEditor.note" rows="4"
                 placeholder="例如：熱賣品項..."></textarea>
 
-              <template v-else>
-                <input class="form-control mb-2" type="date" v-model="productsFieldEditor.value"
-                  :disabled="productsFieldEditor.expiryNone">
-                <label class="form-check-label">
+              <label class="form-label mb-1" for="fieldExpiry">商品效期</label>
+              <div class="d-flex align-items-center gap-2 flex-wrap">
+                <input id="fieldExpiry" class="form-control" style="flex:1 1 145px" type="date"
+                  v-model="productsFieldEditor.expiryDate" :disabled="productsFieldEditor.expiryNone">
+                <label class="text-nowrap">
                   <input class="form-check-input me-1" type="checkbox" v-model="productsFieldEditor.expiryNone">不限期
                 </label>
-              </template>
-              <!-- 修改 備註 效期  結束-->
+              </div>
             </section>
-            <!-- Modal body 結束 -->
 
             <footer class="modal-footer">
               <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
@@ -524,7 +522,7 @@
         </article>
       </div>
     </section>
-    <!-- Modal 共用欄位編輯 結束 -->
+    <!-- Modal 備註與效期合併編輯 結束 -->
 
     <!--Modal 盤點等待清單 開始 -->
     <section class="modal fade" id="pendingModal" tabindex="-1" aria-hidden="true">
@@ -592,9 +590,7 @@
         <article class="modal-content">
 
           <header class="modal-header">
-            <h2 class="modal-title fs-5">
-              <i class="bi bi-check-circle-fill text-success me-2"></i>系統提示
-            </h2>
+            <h2 class="modal-title fs-5"> 系統提示 </h2>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>
           </header>
 
@@ -965,12 +961,12 @@
           editingId: ''      // 原本庫存 ID（編輯時使用）
         });
 
-        // 備註、效期共用編輯 Modal。
+        // 備註與效期同時編輯。
         const productsFieldEditor = reactive({
-          item: null,        // 正在編輯的商品
-          field: 'note',     // note: 備註；expiry: 效期
-          value: '',         // 輸入中的文字或日期
-          expiryNone: false  // 效期是否不限期
+          item: null,       // 正在編輯的商品
+          note: '',         // 備註
+          expiryDate: '',   // 效期日期
+          expiryNone: false // 是否不限期
         });
 
         // computed 衍生資料 ===============
@@ -1077,7 +1073,13 @@
             pageText.value = tmpPageText;
             workUI.inputQty = Object.fromEntries(productsList.value.map(item => {
               const tmpPendingProduct = pendingQueue.list.find(row => row.stock_id === item.stock_id);
-              return [item.stock_id, tmpPendingProduct ? tmpPendingProduct.stock_count : (fnIsUncounted(item.stock_count) ? '' : String(item.stock_count))];
+              let tmpQty = '';
+
+              if (tmpPendingProduct) {
+                tmpQty = tmpPendingProduct.stock_count;
+              }
+
+              return [item.stock_id, tmpQty];
             }));
             workUI.expanded = {};
             productsSearch.currentPage = 1;
@@ -1125,7 +1127,6 @@
             const tmpExistingProduct = productsList.value.find(item => item.stock_id === tmpProduct.stock_id);
             if (tmpExistingProduct) Object.assign(tmpExistingProduct, tmpProduct);
             else productsList.value.unshift(tmpProduct);
-            workUI.inputQty[tmpProduct.stock_id] = fnIsUncounted(tmpProduct.stock_count) ? '' : String(tmpProduct.stock_count);
 
             if (payload.action === 'create') {
               Object.assign(productsSearch, { area: '全部', status: '全部', kind: '全部', on: '全部', expiry: '全部', keyword: '' });
@@ -1178,6 +1179,7 @@
         // 盤點等待清單 刪除單筆
         const fnRemovePending = (stockId) => {
           pendingQueue.list = pendingQueue.list.filter(row => row.stock_id !== stockId);
+          workUI.inputQty[stockId] = '';
         };
 
         // 盤點等待清單 送GAS後回執。
@@ -1212,7 +1214,7 @@
               const tmpProduct = fnConvertKeys(tmpSaved.product);
               const tmpExistingProduct = productsList.value.find(item => item.stock_id === tmpProduct.stock_id);
               if (tmpExistingProduct) Object.assign(tmpExistingProduct, tmpProduct);
-              workUI.inputQty[tmpProduct.stock_id] = fnIsUncounted(tmpProduct.stock_count) ? '' : String(tmpProduct.stock_count);
+              workUI.inputQty[tmpProduct.stock_id] = '';
               const tmpPendingProduct = pendingQueue.list.find(row => row.stock_id === tmpProduct.stock_id);
               gasReceipt.batch.push({
                 stock_id: tmpProduct.stock_id, product_title: tmpProduct.product_title,
@@ -1270,28 +1272,28 @@
         };
 
 
-        //開啟Modal 備註或效期修改
-        const fnOpenFieldModal = (item, field) => {
-          if (!bCanCheck.value || !fnIsTrue(item.product_on)) return;
-          if (field !== 'note' && field !== 'expiry') return;
+        // 開啟備註與效期編輯視窗。
+        const fnOpenFieldModal = (item) => {
+          if (!bCanCheck.value || !item || !fnIsTrue(item.product_on)) return;
           productsFieldEditor.item = item;
-          productsFieldEditor.field = field;
-          const tmpFieldValue = item[field === 'note' ? 'product_note' : 'product_expiry'] || '';
-          productsFieldEditor.expiryNone = field === 'expiry' && !fnHasValidExpiry(tmpFieldValue);
-          productsFieldEditor.value = productsFieldEditor.expiryNone ? '' : tmpFieldValue;
+          productsFieldEditor.note = item.product_note ?? '';
+          productsFieldEditor.expiryNone = !fnHasValidExpiry(item.product_expiry);
+          productsFieldEditor.expiryDate = productsFieldEditor.expiryNone ? '' : item.product_expiry;
           bootstrap.Modal.getOrCreateInstance(document.getElementById('editFieldModal')).show();
         };
 
-
-        // 使用者修改 備註或效期 寫入gSheet
+        // 一次寫入備註與效期。
         const fnSaveField = async () => {
           const tmpProduct = productsFieldEditor.item;
           if (!bCanCheck.value || !tmpProduct || !fnIsTrue(tmpProduct.product_on) || workUI.sending) return;
-          const tmpField = productsFieldEditor.field === 'note' ? 'product_note' : 'product_expiry';
-          const tmpValue = tmpField === 'product_expiry' ? (productsFieldEditor.expiryNone ? '無' : productsFieldEditor.value) : productsFieldEditor.value;
-          if (tmpField === 'product_expiry' && !productsFieldEditor.expiryNone && !fnHasValidExpiry(tmpValue))
+          if (!productsFieldEditor.expiryNone && !fnHasValidExpiry(productsFieldEditor.expiryDate))
             return alert('請選擇有效日期，或勾選不限期');
-          await fnCommit({ action: 'update', mode: 'field', stock_id: tmpProduct.stock_id, data: { [tmpField]: tmpValue } }, 'editFieldModal');
+
+          const tmpData = {
+            product_note: productsFieldEditor.note,
+            product_expiry: productsFieldEditor.expiryNone ? '無' : productsFieldEditor.expiryDate
+          };
+          await fnCommit({ action: 'update', mode: 'field', stock_id: tmpProduct.stock_id, data: tmpData }, 'editFieldModal');
         };
 
         // 初始化讀取商品、人員、文案。
