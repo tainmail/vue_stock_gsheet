@@ -22,98 +22,44 @@
 
   <!-- 樣式 開始 -->
   <style>
-    body {
-      overscroll-behavior-y: contain;
-    }
+    body{overscroll-behavior-y:contain;}
+[v-cloak]{display:none;}
+.app-wrap{max-width:768px;}
+/* 共用灰色框線加深；沿用 Bootstrap 色彩系統 */
+:root{--bs-border-color:#8c959f;}
+.form-control,.form-select,.form-check-input,.modal-content{border-color:var(--bs-border-color);}
+.form-control:focus,.form-select:focus{border-color:var(--bs-primary);}
+/* Bootstrap 原生字級；只提高 Badge 至正文大小 */
+ .badge{font-size:1rem;}
+/* 手機右側操作欄固定寬度 */
+ .count-box{width:76px;flex:0 0 76px;}
+.count-box .form-control{text-align:right;font-weight:700;padding-inline:.2rem;appearance:textfield;-moz-appearance:textfield;}
+.count-box input[type=number]::-webkit-inner-spin-button,.count-box input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0;}
+.count-box .btn{width:100%;padding-inline:.12rem;}
+/* 手機表單採格線：左 Label 固定 32% */
+ .form-grid-table{width:100%;border-collapse:collapse;table-layout:fixed;}
+.form-grid-table th,.form-grid-table td{border:1px solid var(--bs-border-color);padding:.3rem .4rem;vertical-align:middle;}
+.form-grid-table th{width:25%;}
+.form-grid-table .form-control,.form-grid-table .form-select{min-width:0;}
+/* 保留最少的佈局差異 */
+ .detail-panel li,.product-note{overflow-wrap:anywhere;}
+.detail-panel ul{margin:0;padding-left:1.15rem;}
 
-    [v-cloak] {
-      display: none;
-    }
 
-    .app-wrap {
-      max-width: 768px;
-    }
+/* 圓角標籤：共用外形 */
+.tag_round{display:inline-block;padding:.35em .65em;font-size:1rem;font-weight:700;line-height:1;text-align:center;white-space:nowrap;vertical-align:baseline;border:1px solid;border-radius:50rem;}
+/* 藍色：帳面、未盤 */
+.tag_round.primary{color:var(--bs-primary-text-emphasis);background:var(--bs-primary-bg-subtle);border-color:var(--bs-primary);}
+/* 綠色：正常 */
+.tag_round.success{color:var(--bs-success-text-emphasis);background:var(--bs-success-bg-subtle);border-color:var(--bs-success);}
+/* 紅色：異常 */
+.tag_round.danger{color:var(--bs-danger-text-emphasis);background:var(--bs-danger-bg-subtle);border-color:var(--bs-danger);}
+/* 黃色：過期 */
+.tag_round.warning{color:var(--bs-warning-text-emphasis);background:var(--bs-warning-bg-subtle);border-color:var(--bs-warning);}
+/* 灰色：已下架 */
+.tag_round.secondary{color:#fff;background:var(--bs-secondary);border-color:var(--bs-dark);}
 
-    /* 共用灰色框線加深；沿用 Bootstrap 色彩系統 */
-    :root {
-      --bs-border-color: #8c959f;
-    }
 
-    .form-control,
-    .form-select,
-    .form-check-input,
-    .modal-content {
-      border-color: var(--bs-border-color);
-    }
-
-    .form-control:focus,
-    .form-select:focus {
-      border-color: var(--bs-primary);
-    }
-
-    /* Bootstrap 原生字級；只提高 Badge 至正文大小 */
-    .badge {
-      font-size: 1rem;
-    }
-
-    /* 手機右側操作欄固定寬度 */
-    .count-box {
-      width: 76px;
-      flex: 0 0 76px;
-    }
-
-    .count-box .form-control {
-      text-align: right;
-      font-weight: 700;
-      padding-inline: .2rem;
-      appearance: textfield;
-      -moz-appearance: textfield;
-    }
-
-    .count-box input[type=number]::-webkit-inner-spin-button,
-    .count-box input[type=number]::-webkit-outer-spin-button {
-      -webkit-appearance: none;
-      margin: 0;
-    }
-
-    .count-box .btn {
-      width: 100%;
-      padding-inline: .12rem;
-    }
-
-    /* 手機表單採格線：左 Label 固定 32% */
-    .form-grid-table {
-      width: 100%;
-      border-collapse: collapse;
-      table-layout: fixed;
-    }
-
-    .form-grid-table th,
-    .form-grid-table td {
-      border: 1px solid var(--bs-border-color);
-      padding: .3rem .4rem;
-      vertical-align: middle;
-    }
-
-    .form-grid-table th {
-      width: 25%;
-    }
-
-    .form-grid-table .form-control,
-    .form-grid-table .form-select {
-      min-width: 0;
-    }
-
-    /* 保留最少的佈局差異 */
-    .detail-panel li,
-    .product-note {
-      overflow-wrap: anywhere;
-    }
-
-    .detail-panel ul {
-      margin: 0;
-      padding-left: 1.15rem;
-    }
   </style>
   <!-- 樣式 結束 -->
 </head>
@@ -136,8 +82,10 @@
     <section v-if="bCanEdit" class="row g-2 align-items-center mb-2">
       <div class="col-6">
         <button type="button" class="btn btn-success w-100" @click="fnOpenProductModal(null)"><i
-            class="bi bi-plus-circle me-1"></i>新增盤點</button>
+            class="bi bi-plus-circle me-1"></i>新增盤點
+        </button>
       </div>
+      
       <div class="col-6">
         <select class="form-select" v-model="productsSearch.on">
           <option value="全部">顯示上下架</option>
@@ -157,17 +105,21 @@
 
     <!-- 讀取狀態 開始 -->
     <div v-if="workUI.loading" class="alert alert-info py-2">正在讀取 Google Sheet CSV…</div>
-    <div v-if="workUI.loadError" class="alert alert-danger py-2" role="alert">{{ workUI.loadError }} <button
-        class="btn  btn-outline-danger ms-2" @click="fnLoadAll">重試</button></div>
+    <div v-if="workUI.loadError" class="alert alert-danger py-2" role="alert">
+      {{ workUI.loadError }} 
+      <button class="btn  btn-outline-danger ms-2" @click="fnLoadAll">重試</button>
+    </div>
     <!-- 讀取狀態 結束 -->
 
 
     <!-- 搜尋商品 開始 -->
     <section class="row g-2 mb-2">
+      
       <div class="col-6">
         <label class="form-label mb-1"><i class="bi bi-search"></i> 搜尋商品</label>
         <input class="form-control" v-model.trim="productsSearch.keyword" placeholder="例如：商品名稱、編號、備註..." type="search">
       </div>
+
       <div class="col-6">
         <label class="form-label mb-1"><i class="bi bi-calendar-check"></i> 效期</label>
         <select class="form-select" v-model="productsSearch.expiry">
@@ -177,11 +129,13 @@
           <option value="不限期">不限期</option>
         </select>
       </div>
+
     </section>
     <!-- 搜尋商品 結束 -->
 
     <!-- 庫存區域／盤點狀態 開始 -->
     <section class="row g-2 mb-4">
+      
       <div class="col-6">
         <label class="form-label mb-1"><i class="bi bi-clipboard-check-fill"></i> 盤點狀態</label>
         <select class="form-select" v-model="productsSearch.status">
@@ -191,6 +145,7 @@
           <option value="異常">異常</option>
         </select>
       </div>
+
       <div class="col-6">
         <label class="form-label mb-1"><i class="bi bi-geo-alt-fill"></i> 庫存區域</label>
         <select class="form-select" v-model="productsSearch.area">
@@ -198,14 +153,19 @@
           <option v-for="a in productsAreaFilterOptions" :key="a" :value="a">{{ a }}</option>
         </select>
       </div>
+
     </section>
     <!-- 庫存區域／盤點狀態 結束 -->
 
     <!-- 產品分類 Tag Button 開始 -->
     <section class="d-flex align-items-center flex-wrap gap-1 mb-4">
-      <button v-for="c in productsKindFilterOptions" :key="c" type="button" class="btn"
-        :class="productsSearch.kind === c ? 'btn-primary' : 'btn-secondary'" @click="productsSearch.kind = c">{{ c
-        }}</button>
+      <button class="btn" type="button" 
+        v-for="c in productsKindFilterOptions" :key="c"  
+        :class="productsSearch.kind === c ? 'btn-primary' : 'btn-outline-primary'" 
+        @click="productsSearch.kind = c">
+        {{ c }}
+      </button>
+
     </section>
     <!-- 產品分類 Tag Button 結束 -->
 
@@ -224,65 +184,79 @@
     <main>
 
       <!--篩選搜尋產品清單 開始-->
-      <article v-for="item in productsPageList" :key="item.stock_id" class="border rounded-1 px-2 py-2 mb-4"
-        :class="fnIsTrue(item.product_on) ? 'bg-body' : 'bg-body-secondary'">
-        <!--兩欄式 開始-->
-        <div class="d-flex align-items-start gap-2">
-          <!-- 左欄資訊 開始 -->
-          <div class="flex-grow-1" style="min-width:0">
-            <div class="mb-2">
-              <span v-if="!fnIsTrue(item.product_on)"
-                class="badge rounded-pill bg-secondary text-white border border-dark me-1">已下架</span>
-              <strong class="h5 fw-semibold">{{ item.product_title }}</strong>
-            </div>
-            <div class="d-flex align-items-center gap-1 flex-wrap mb-2">
-              <span class="badge rounded-pill bg-primary-subtle text-primary-emphasis border border-primary">帳面
-                <strong>{{ (fnIsUncounted(item.stock_qty) ? '—' : item.stock_qty) }}</strong>{{ item.product_unit
-                }}</span>
-              <span v-if="(item.stock_status || '未盤') === '正常'"
-                class="badge rounded-pill bg-success-subtle text-success-emphasis border border-success">正常</span>
-              <span v-else-if="(item.stock_status || '未盤') === '異常'"
-                class="badge rounded-pill bg-danger-subtle text-danger-emphasis border border-danger">異常 <strong>{{
-                  (fnIsUncounted(item.stock_diff) ? '—' : Number(item.stock_diff) > 0 ? '+' + item.stock_diff :
-                  item.stock_diff) }}</strong></span>
-              <span v-else
-                class="badge rounded-pill bg-primary-subtle text-primary-emphasis border border-primary">未盤</span>
-              <span v-if="fnIsExpired(item.product_expiry)"
-                class="badge rounded-pill bg-warning-subtle text-warning-emphasis border border-warning">過期</span>
-            </div>
-            <div class="product-note text-secondary">
-              備註：{{ item.product_note || '—' }}
-              <button v-if="bCanCheck && fnIsTrue(item.product_on)" type="button"
-                class="btn btn-outline-secondary  py-0 px-1 ms-1" @click="fnOpenFieldModal(item, 'note')"
-                title="修改備註"><i class="bi bi-pencil"></i></button>
-            </div>
-            <div class="text-secondary">
-              效期：{{ item.product_expiry === '無' ? '不限期' : (item.product_expiry || '—') }}
-              <button v-if="bCanCheck && fnIsTrue(item.product_on)" type="button"
-                class="btn btn-outline-secondary py-0 px-1 ms-1" @click="fnOpenFieldModal(item, 'expiry')"
-                title="修改效期"><i class="bi bi-pencil"></i></button>
-            </div>
-          </div>
-          <!-- 左欄資訊 結束 -->
+      <article 
+        class="border rounded-1 px-2 py-2 mb-4"
+        :class="fnIsTrue(item.product_on) ? 'bg-body' : 'bg-body-secondary'"
+        v-for="item in productsPageList" :key="item.stock_id">
 
-          <!-- 右欄 操作 開始 -->
-          <div class="count-box d-flex flex-column gap-1">
-            <input v-if="bCanCheck && fnIsTrue(item.product_on)" class="form-control" type="number" min="0" step="1"
-              :disabled="fnIsPending(item.stock_id)" :aria-label="item.product_title + '實盤數量'"
-              v-model="workUI.inputQty[item.stock_id]">
-            <button v-if="bCanCheck && fnIsTrue(item.product_on)" class="btn"
-              :class="fnIsPending(item.stock_id) ? 'btn-warning text-dark' : 'btn-dark'" type="button"
-              @click="fnAddPending(item)"><i class="bi me-1"
-                :class="fnIsPending(item.stock_id) ? 'bi-hourglass-split' : 'bi-check-lg'"></i>{{
-              fnIsPending(item.stock_id) ? '等待' : (fnIsUncounted(item.stock_count) ? '確認' : '更新') }}</button>
-            <button v-if="bCanEdit" class="btn btn-success" type="button" @click="fnOpenProductModal(item)"><i
-                class="bi bi-pencil-square me-1"></i>編輯</button>
+        <!-- 兩欄式 開始 -->
+        <div class="d-flex align-items-start gap-2">
+
+          <!-- 左欄：商品資訊 開始 -->
+          <section class="flex-grow-1" style="min-width:0">
+
+            <h2 class="h5 fw-semibold  mb-2">{{ item.product_title }}</h2>
+
+            <!-- 庫存狀態 開始 -->
+            <div class="d-flex align-items-center gap-1 flex-wrap mb-2">
+              <span v-if="!fnIsTrue(item.product_on)" class="tag_round secondary me-1">已下架</span>
+
+              <span v-if="fnIsExpired(item.product_expiry)"class="tag_round warning">過期</span>
+
+              <span class="tag_round primary">
+                帳面 {{ fnIsUncounted(item.stock_qty) ? '—' : item.stock_qty }} {{ item.product_unit }}
+              </span>
+
+              <span v-if="(item.stock_status || '未盤') === '正常'" class="tag_round success" >正常</span>
+
+              <span v-else-if="(item.stock_status || '未盤') === '異常'" class="tag_round danger" >
+                異常 {{ fnIsUncounted(item.stock_diff) ? '—' : Number(item.stock_diff) > 0 ? '+' + item.stock_diff : item.stock_diff }} 
+              </span>
+
+              <span v-else class="tag_round primary">未盤</span>
+
+            </div>
+            <!-- 庫存狀態 結束 -->
+
+            <!-- 備註 效期 開始-->
+            <p class="product-note text-secondary mb-0"> 備註：{{item.product_note || '—'}}</p>
+            <p class="text-secondary mb-0"> 效期：{{item.product_expiry === '無' ? '不限期':(item.product_expiry || '—')}}</p>
+            <button class="btn btn-outline-secondary py-0 px-1" type="button" title="修改備註效期"
+              v-if="bCanCheck && fnIsTrue(item.product_on)" @click="fnOpenFieldModal(item, 'expiry')" >
+              <i class="bi bi-pencil"></i>
+            </button>
+            <!-- 備註 效期 結束-->
+
+          </section>
+          <!-- 左欄：商品資訊 結束 -->
+
+          <!-- 右欄：商品操作 開始 -->
+          <footer class="count-box d-flex flex-column gap-1">
+
+            <input class="form-control pe-3 fs-3" type="number" min="0" step="1" v-if="bCanCheck && fnIsTrue(item.product_on)"
+              :disabled="fnIsPending(item.stock_id)" aria-label="實盤數量" v-model="workUI.inputQty[item.stock_id]">
+
+            <button class="btn" type="button" v-if="bCanCheck && fnIsTrue(item.product_on)"
+              :class="fnIsPending(item.stock_id) ? 'btn-warning text-dark' : 'btn-dark'" @click="fnAddPending(item)">
+              <i class="bi me-1" :class="fnIsPending(item.stock_id) ? 'bi-hourglass-split' : 'bi-check-lg'"></i>
+              {{ fnIsPending(item.stock_id) ? '等待' : (fnIsUncounted(item.stock_count) ? '確認' : '更新') }}
+            </button>
+
+            <button class="btn btn-success" v-if="bCanEdit" type="button" @click="fnOpenProductModal(item)">
+              <i class="bi bi-pencil-square me-1"></i>編輯
+            </button>
+
             <button class="btn btn-primary" type="button" :aria-expanded="!!workUI.expanded[item.stock_id]"
-              @click="fnToggleDetails(item.stock_id)"><i class="bi bi-list-ul me-1"></i>詳情</button>
-          </div>
-          <!-- 右欄 操作 結束 -->
+              @click="fnToggleDetails(item.stock_id)">
+              <i class="bi bi-list-ul me-1"></i>詳情
+            </button>
+
+          </footer>
+          <!-- 右欄：商品操作 結束 -->
+
         </div>
-        <!--兩欄式 結束-->
+        <!-- 兩欄式 結束 -->
+
 
         <!-- Toggle詳情 開始 -->
         <section v-if="workUI.expanded[item.stock_id]" class="detail-panel mt-2 d-flex flex-column gap-2">
@@ -320,13 +294,22 @@
     <!-- 商品盤點列表 結束 -->
 
     <!-- Pager 開始 -->
-    <nav class="d-flex justify-content-center align-items-center gap-2 py-2" style="margin-bottom:150px;"
-      aria-label="商品分頁">
-      <button class="btn btn-primary" type="button" :disabled="productsSearch.currentPage <= 1"
-        @click="productsSearch.currentPage--"><i class="bi bi-chevron-left"></i> PREV</button>
+    <nav class="d-flex justify-content-center align-items-center gap-2 py-2" style="margin-bottom:150px;">
+      
+      <button class="btn btn-primary" type="button" 
+        :disabled="productsSearch.currentPage <= 1"
+        @click="productsSearch.currentPage--">
+        <i class="bi bi-chevron-left"></i> PREV
+      </button>
+      
       <strong>{{ productsSearch.currentPage }}/{{ productsTotalPages }}</strong>
-      <button class="btn btn-primary" type="button" :disabled="productsSearch.currentPage >= productsTotalPages"
-        @click="productsSearch.currentPage++">NEXT <i class="bi bi-chevron-right"></i></button>
+      
+      <button class="btn btn-primary" type="button" 
+        :disabled="productsSearch.currentPage >= productsTotalPages"
+        @click="productsSearch.currentPage++">
+        NEXT <i class="bi bi-chevron-right"></i>
+      </button>
+
     </nav>
     <!-- Pager 結束 -->
 
@@ -410,11 +393,13 @@
                     <div class="d-flex gap-2">
                       <input class="form-control" style="min-width:0" 
                         v-model.trim="productsEditor.form.product_unit" placeholder="例如：包...">
-                      <select class="form-select" style="width:170px" aria-label="建議單位"
+
+                      <select class="form-select" style="width:170px"
                         @change="productsEditor.form.product_unit = $event.target.value; $event.target.value = ''">
                         <option value="">建議單位</option>
                         <option v-for="unit in productsUnitPresets" :key="unit" :value="unit">{{ unit }}</option>
                       </select>
+
                     </div>
                   </td>
                 </tr>
@@ -448,8 +433,9 @@
                     <div class="d-flex align-items-center gap-1">
                       <input class="form-control" style="min-width:0; flex:1"
                              v-model.trim="productsEditor.form.stock_area" placeholder="例如：A1...">
-                      <select class="form-select" style="width:120px" aria-label="建議庫存區域"
-                              @change="productsEditor.form.stock_area = $event.target.value; $event.target.value = ''">
+
+                      <select class="form-select" style="width:120px"
+                        @change="productsEditor.form.stock_area = $event.target.value; $event.target.value = ''">
                         <option value="">建議區域</option>
                         <option v-for="area in productsAreaPresets" :key="area" :value="area">{{ area }}</option>
                       </select>
@@ -477,8 +463,10 @@
                 <!-- 商品備註 開始-->
                 <tr>
                   <th class="bg-body-secondary">商品備註</th>
-                  <td><textarea class="form-control" rows="3" v-model="productsEditor.form.product_note"
-                      placeholder="例如：熱賣品項..."></textarea></td>
+                  <td>
+                    <textarea class="form-control" rows="3" v-model="productsEditor.form.product_note"
+                      placeholder="例如：熱賣品項..."></textarea>
+                  </td>
                 </tr>
                 <!-- 商品備註 結束-->
 
